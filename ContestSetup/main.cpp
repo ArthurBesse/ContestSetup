@@ -318,6 +318,43 @@ namespace abesse
 
 	};
 
+	template<class T>
+	class FenwickTree {
+		std::vector<T> tree;  
+		T(*op)(T, T);
+		int n;
+
+		FenwickTree(int count, T(*operation)(T, T))
+			: tree(count, T())
+			, op(operation)
+			, n(count)
+		{
+		}
+
+		FenwickTree(std::vector<T> a) : FenwickTree(a.size()) 
+		{
+			for (size_t i = 0; i < a.size(); i++)
+				add(i, a[i]);
+		}
+
+		int query(int r) {
+			int ret = 0;
+			for (; r >= 0; r = (r & (r + 1)) - 1)
+				ret = op(tree[r], ret);
+			return ret;
+		}
+
+		int query(int l, int r) {
+			return query(r) - query(l - 1);
+		}
+
+		void add(int idx, int delta) {
+			for (; idx < n; idx = idx | (idx + 1))
+				tree[idx] = op(delta, tree[idx]);
+		}
+	};
+
+
 	template<typename T>
 	class SparseTable
 	{
@@ -1155,6 +1192,43 @@ namespace abesse
 			return !fail;
 		}
 	};
+
+	class PrefixFunction
+	{
+	public:
+		void operator()(std::string const& s, std::vector<int>& res)
+		{
+			int n = static_cast<int>(s.length());
+			res.assign(n, 0);
+			for (int i = 1; i < n; i++) {
+				int j = res[i - 1];
+				while (j > 0 && s[i] != s[j])
+					j = res[j - 1];
+				if (s[i] == s[j])
+					j++;
+				res[i] = j;
+			}
+		}
+	};
+
+	class ZFunction
+	{
+	public:
+		void operator()(std::string const& s, std::vector<int>& res)
+		{
+			int n = static_cast<int>(s.length());
+			res.assign(n, 0);
+			for (int i = 1, l = 0, r = 0; i < n; ++i) 
+			{
+				if (i <= r)
+					res[i] = std::min(r - i + 1, res[i - l]);
+				while (i + res[i] < n && s[res[i]] == s[i + res[i]])
+					++res[i];
+				if (i + res[i] - 1 > r)
+					l = i, r = i + res[i] - 1;
+			}
+		}
+	};
 }
 
 using namespace abesse;
@@ -1169,7 +1243,7 @@ typedef unsigned long long ull;
 typedef long long ll;
 typedef unsigned int ui;
 
-
+constexpr bool multi = 1;
 
 int main(int argc, char const** argv)
 {
@@ -1179,25 +1253,24 @@ int main(int argc, char const** argv)
 #ifdef ABESSE
 	freopen("in.txt", "r", stdin);
 #endif
-	std::string s;
-	SuffixAutomaton sf("");
-	char c;
-	while (std::cin >> c)
+
+	int _ = 1;
+	if (multi)
+		cin >> _;
+	while (_--)
 	{
-		std::cin >> s;
+		ZFunction zf;
+		string s; cin >> s;
 
-		if (c == 'A')
-		{
-			for (int i = 0; i < s.length(); i++) sf.extend(tolower(s[i]));
-		}
-		else
-		{
-			std::transform(s.begin(), s.end(), s.begin(),
-				[](unsigned char c) { return std::tolower(c); });
-			std::cout << (sf.is_lcs(s) ? "YES\n" : "NO\n");
-		}
+		vector<int> z;
+		zf(s, z);
+		sort(z.begin(), z.end());
 
+		for (size_t i = 1; i <= s.size(); i++)
+			cout << distance(lower_bound(z.begin(), z.end(), i), z.end()) + 1 << " ";
+		cout << endl;
 	}
+
 	return 0;
 }
 
