@@ -109,6 +109,46 @@ namespace abesse
 		return (1 + ((x + y) / 2) * (((x + y) / 2) + 1) + ((x + y) % 2) * ((x + y + 1) / 2)) + abs(x - y) / 2;
 	}
 
+	template<typename T>
+	struct ABMin
+	{
+		static T compute(T const& first, T const& second)
+		{
+			return std::min(first, second);
+		}
+		static T DefVal()
+		{
+			return std::numeric_limits<T>::max();
+		}
+	};
+
+	template<typename T>
+	struct ABMax
+	{
+		static T compute(T const& first, T const& second)
+		{
+			return std::max(first, second);
+		}
+		static T DefVal()
+		{
+			return std::numeric_limits<T>::min();
+		}
+	};
+
+	template<typename T>
+	struct ABSum
+	{
+		static T compute(T const& first, T const& second)
+		{
+			return first + second;
+		}
+
+		static T DefVal()
+		{
+			return T();
+		}
+	};
+
 	template<size_t MAXN>
 	class Erato
 	{
@@ -260,16 +300,14 @@ namespace abesse
 		}
 	};
 
-	template<class T>
+	template<class T, class Operation>
 	class SegTree
 	{
-		T defVal;
 		std::vector<T> tree;
-		T(*op)(T, T);
 		int n;
 	public:
-		SegTree(std::vector<T> const& v, T defVal, T(*op_)(T, T))
-			: defVal(defVal), tree(std::vector<T>(count_size(v.size()), defVal)), op(op_), n(tree.size() / 2)
+		SegTree(std::vector<T> const& v)
+			: tree(std::vector<T>(count_size(v.size()), Operation::DefVal())), n(tree.size() / 2)
 		{
 			for (int i = 0; i < v.size(); ++i)
 			{
@@ -282,29 +320,26 @@ namespace abesse
 		{
 			for (int i = n - 1; i > 0; --i)
 			{
-				tree[i] = op(tree[i << 1], tree[i << 1 | 1]);
+				tree[i] = Operation::compute(tree[i << 1], tree[i << 1 | 1]);
 			}
 		}
 		T query(int l, int r)
 		{
-			T res = defVal;
+			T res = Operation::DefVal();
 			for (l += n, r += n; l < r; l >>= 1, r >>= 1)
 			{
-				if (l & 1)
-					res = op(res, tree[l++]);
-
-				if (r & 1)
-					res = op(res, tree[--r]);
+				if (l & 1) res = Operation::compute(res, tree[l++]);
+				if (r & 1) res = Operation::compute(res, tree[--r]);
 			}
 
 			return res;
 		}
-		void update(int i, T val)
+		void update(int i, T const& val)
 		{
 			i += n;
 			for (tree[i] = val; i > 1; i >>= 1)
 			{
-				tree[i >> 1] = op(tree[i], tree[i ^ 1]);
+				tree[i >> 1] = Operation(tree[i], tree[i ^ 1]);
 			}
 		}
 	private:
@@ -318,50 +353,58 @@ namespace abesse
 
 	};
 
-	template<class T>
-	class FenwickTree {
+	enum FenwickQueryType{BEGIN_QUERY, END_QUERY};
+	template<class T, class Operation, FenwickQueryType QueryType = BEGIN_QUERY>
+	class FenwickTree 
+	{
 		std::vector<T> tree;  
-		T(*op)(T, T);
 		int n;
-
-		FenwickTree(int count, T(*operation)(T, T))
-			: tree(count, T())
-			, op(operation)
-			, n(count)
+	public:
+		FenwickTree(size_t count)
+			: tree(count, Operation::DefVal())
+			, n(static_cast<int>(count))
 		{
 		}
 
-		FenwickTree(std::vector<T> a) : FenwickTree(a.size()) 
+		FenwickTree(std::vector<T> const & a) : FenwickTree(a.size())
 		{
 			for (size_t i = 0; i < a.size(); i++)
-				add(i, a[i]);
+				update(static_cast<int>(i), a[i]);
 		}
 
-		int query(int r) {
-			int ret = 0;
-			for (; r >= 0; r = (r & (r + 1)) - 1)
-				ret = op(tree[r], ret);
+		//If QueryType == BEGIN_QUERY compute for range [0, r)
+		//Else compute for range [r, end)
+		T query(int r) 
+		{
+			T ret = Operation::DefVal();
+
+			if (FenwickQueryType::BEGIN_QUERY == QueryType)
+			{
+				--r;
+				for (; r >= 0; r = (r & (r + 1)) - 1) ret = Operation::compute(tree[r], ret);
+			}
+			else
+				for (; r < n; r = r | (r + 1)) ret = Operation::compute(tree[r], ret);
 			return ret;
 		}
-
-		int query(int l, int r) {
-			return query(r) - query(l - 1);
-		}
-
-		void add(int idx, int delta) {
-			for (; idx < n; idx = idx | (idx + 1))
-				tree[idx] = op(delta, tree[idx]);
+	
+		//In case of min/max operation, new value should be smaller/bigger than current
+		void update(int idx, T const& val) 
+		{
+			if (FenwickQueryType::BEGIN_QUERY == QueryType)
+				for (; idx < n; idx = idx | (idx + 1)) tree[idx] = Operation::compute(tree[idx], val);
+			else
+				for (; idx >= 0; idx = (idx & (idx + 1)) - 1) tree[idx] = Operation::compute(tree[idx], val);
 		}
 	};
 
-
-	template<typename T>
+	template<typename T, class Operation>
 	class SparseTable
 	{
 		std::vector<std::vector<T> > st;
-		T(*op)(T, T);
 	public:
-		SparseTable(std::vector<T> const& v, T(*op_)(T, T)) : st(ceil(log2(v.size())) + 1, std::vector<T>(v.size())), op(op_)
+		SparseTable(std::vector<T> const& v) 
+			: st(ceil(log2(v.size())) + 1, std::vector<T>(v.size(), Operation::DefVal()))
 		{
 			int h = floor(log2(v.size()));
 
@@ -370,14 +413,17 @@ namespace abesse
 
 			for (int i = 1; i <= h; i++)
 				for (int j = 0; j + (1 << i) <= v.size(); j++)
-					st[i][j] = op(st[i - 1][j], st[i - 1][j + (1 << (i - 1))]);
+					st[i][j] = Operation::compute(st[i - 1][j], st[i - 1][j + (1 << (i - 1))]);
 		}
 
 		//Compute for range [l, r)
-		int query(int l, int r)
+		T query(int l, int r)
 		{
+			if (l == r)
+				return Operation::DefVal();
+
 			int p = this->log2_internal(r - l);
-			return op(st[p][l], st[p][r - (1 << p)]);
+			return Operation::compute(st[p][l], st[p][r - (1 << p)]);
 		}
 
 		int log2_internal(int x)
@@ -390,74 +436,63 @@ namespace abesse
 		}
 	};
 
-	template <typename T>
+	template <typename T, class Operation>
 	class DisjointSparseTable
 	{
 	public:
-		explicit DisjointSparseTable(std::vector<T> arr, T(*op_)(T, T), T defval_) : op(op_), defval(defval_)
+		explicit DisjointSparseTable(std::vector<T> arr) 
 		{
 			// Find the highest cnt such that pow2 = 2^cnt >= x
 			int pow2 = 1, cnt = 0;
 			for (; pow2 < arr.size(); pow2 *= 2, ++cnt);
 
-			arr.resize(pow2, defval);
-			sum.resize(cnt, std::vector<T>(pow2));
+			arr.resize(pow2, Operation::DefVal());
+			st.resize(cnt, std::vector<T>(pow2));
 
-			for (int level = 0; level < sum.size(); ++level)
+			for (int level = 0; level < st.size(); ++level)
 			{
 				for (int block = 0; block < 1 << level; ++block)
 				{
-					// The first half of the block contains suffix sums,
-					// the second half contains prefix sums
-					const auto start = block << (sum.size() - level);
-					const auto end = (block + 1) << (sum.size() - level);
+					const auto start = block << (st.size() - level);
+					const auto end = (block + 1) << (st.size() - level);
 					const auto middle = (end + start) / 2;
 
 					auto val = arr[middle];
-					sum[level][middle] = val;
+					st[level][middle] = val;
 					for (int x = middle + 1; x < end; ++x)
 					{
-						val = op(val, arr[x]);
-						sum[level][x] = val;
+						val = Operation::compute(val, arr[x]);
+						st[level][x] = val;
 					}
 
 					val = arr[middle - 1];
-					sum[level][middle - 1] = val;
+					st[level][middle - 1] = val;
 					for (int x = middle - 2; x >= start; --x)
 					{
-						val = op(val, arr[x]);
-						sum[level][x] = val;
+						val = Operation::compute(val, arr[x]);
+						st[level][x] = val;
 					}
 				}
 			}
 		}
-		/*! Returns Monoid sum over range [l, r)*/
+		//Query in range [l, r)
 		T query(int l, int r) const
 		{
-			assert(l < r);
 			// Convert half open interval to closed interval
-			--r;
-			if (r == l - 1)
-			{
-				return defval;
-			}
-			if (l == r)
-			{
-				return sum.back()[l];
-			}
+			if (--r == l - 1) return Operation::DefVal();
+			if (l == r)return st.back()[l];
+
 			// Position of the leftmost different bit from the right
 #if defined(_MSC_VER)
 			const auto pos_diff = (sizeof(long long) * CHAR_BIT) - 1 - __lzcnt64(l ^ r);
 #else
 			const auto pos_diff = (sizeof(long long) * CHAR_BIT) - 1 - __builtin_clzll(l ^ r);
 #endif
-			const auto level = sum.size() - 1 - pos_diff;
-			return op(sum[level][l], sum[level][r]);
+			const auto level = st.size() - 1 - pos_diff;
+			return Operation::compute(st[level][l], st[level][r]);
 		}
 	private:
-		std::vector<std::vector<T> > sum;
-		T(*op)(T, T);
-		T defval;
+		std::vector<std::vector<T> > st;
 	};
 
 	class DSU
@@ -1234,43 +1269,35 @@ namespace abesse
 using namespace abesse;
 using namespace std;
 
-#define LMAX = 9223372036854775807ll;
-#define IMAX = 2147483647;
-#define LMIN = -9223372036854775808ll;
-#define IMIN = -2147483648;
+#define LMAX 9223372036854775807ll
+#define IMAX 2147483647
+#define LMIN -9223372036854775808ll
+#define IMIN -2147483648
+#define all(a) a.begin(), a.end()
 
 typedef unsigned long long ull;
 typedef long long ll;
 typedef unsigned int ui;
 
-constexpr bool multi = 1;
+
+
 
 int main(int argc, char const** argv)
 {
-	std::ios_base::sync_with_stdio(false);
-	std::cin.tie(0);
-	std::cout.tie(0);
 #ifdef ABESSE
 	freopen("in.txt", "r", stdin);
 #endif
 
-	int _ = 1;
-	if (multi)
-		cin >> _;
-	while (_--)
-	{
-		ZFunction zf;
-		string s; cin >> s;
-
-		vector<int> z;
-		zf(s, z);
-		sort(z.begin(), z.end());
-
-		for (size_t i = 1; i <= s.size(); i++)
-			cout << distance(lower_bound(z.begin(), z.end(), i), z.end()) + 1 << " ";
-		cout << endl;
-	}
+	vector<ll> v = { 2, 3, 4, 1, 4, 5, 6, 7, 5, 9, 10, 12 };
+	FenwickTree<ll, ABSum<ll>, BEGIN_QUERY > s(v);
+	cout << s.query(0) << endl;
+	cout << s.query(1) << endl;
+	cout << s.query(2) << endl;
+	cout << s.query(3) << endl;
+	cout << s.query(4) << endl;
+	cout << s.query(5) << endl;
+	cout << s.query(6) << endl;
+	cout << s.query(v.size()) << endl;
 
 	return 0;
 }
-
