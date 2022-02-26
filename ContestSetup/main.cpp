@@ -93,7 +93,6 @@ namespace abesse
 	template<typename T>
 	T fast_log2(T x)
 	{
-		std::cout << "log2(" << x << ")=";
 		constexpr size_t bit_count = sizeof(T) * CHAR_BIT;
 #if defined(_MSC_VER)
 		if constexpr (std::is_same<T, unsigned __int64>::value)
@@ -115,7 +114,6 @@ namespace abesse
 			assert(false, "Invalid type has been specified for fast_log2()");
 #endif
 		
-		return T();
 	}
 
 	bool is_prime(unsigned long long a)
@@ -1303,7 +1301,7 @@ int main(int argc, char const** argv)
 #ifdef ABESSE
 	freopen("in.txt", "r", stdin);
 #endif
-
+	cout << fast_log2<ui>(5);
 
 	return 0;
 }
