@@ -102,7 +102,10 @@ namespace abesse
 		else if constexpr (std::is_same<T, unsigned short>::value)
 			return bit_count - 1 - __lzcnt16(x);
 		else
-			assert(false, "Invalid type has been specified for fast_log2()");
+			static_assert(  true == std::is_same<T, unsigned __int64>::value
+						 || true == std::is_same<T, unsigned int>::value
+						 || true == std::is_same<T, unsigned short>::value
+						, "Invalid type has been specified for fast_log2()");
 #else
 		if constexpr (std::is_same<T, unsigned long long>::value)
 			return bit_count - 1 - __builtin_clzll(x);
@@ -111,9 +114,11 @@ namespace abesse
 		else if constexpr (std::is_same<T, unsigned int>::value)
 			return bit_count - 1 - __builtin_clz(x);
 		else
-			assert(false, "Invalid type has been specified for fast_log2()");
-#endif
-		
+			static_assert(true == std::is_same<T, unsigned unsigned long long>::value
+				|| true == std::is_same<T, unsigned long>::value
+				|| true == std::is_same<T, unsigned int>::value
+				, "Invalid type has been specified for fast_log2()");
+#endif		
 	}
 
 	bool is_prime(unsigned long long a)
@@ -1301,7 +1306,6 @@ int main(int argc, char const** argv)
 #ifdef ABESSE
 	freopen("in.txt", "r", stdin);
 #endif
-	cout << fast_log2<ui>(5);
 
 	return 0;
 }
