@@ -132,10 +132,10 @@ namespace abesse
 	}
 
 	/*
-	* cantor_numeration(x, y) == cantor_numeration(y, x)
-	* if {a, b) != {c, d} ==> cantor_numeration(a, b) != cantor_numeration(c, d)
+	* commutative_cantor_numeration(x, y) == commutative_cantor_numeration(y, x)
+	* if {a, b) != {c, d} ==> commutative_cantor_numeration(a, b) != commutative_cantor_numeration(c, d)
 	*/
-	inline long long cantor_numeration(long long x, long long y)
+	inline long long commutative_cantor_numeration(long long x, long long y)
 	{
 		return (1 + ((x + y) / 2) * (((x + y) / 2) + 1) + ((x + y) % 2) * ((x + y + 1) / 2)) + abs(x - y) / 2;
 	}
