@@ -128,7 +128,7 @@ namespace abesse
 			if (a % i == 0)
 				return 0;
 		}
-		return a == 1;
+		return a != 1;
 	}
 
 	/*
@@ -517,11 +517,11 @@ namespace abesse
 	class DSU
 	{
 	public:
-		DSU(int n)
+		DSU(size_t n)
 		{
-			parent = new int[n];
-			sz = new int[n];
-			for (int i = 0; i < n; ++i)
+			parent = new size_t[n];
+			sz = new size_t[n];
+			for (size_t i = 0; i < n; ++i)
 			{
 				parent[i] = i;
 				sz[i] = 1;
@@ -534,36 +534,28 @@ namespace abesse
 			delete[] sz;
 		}
 
-		void union_sets(int u, int v)
+		void union_sets(size_t u, size_t v)
 		{
 			u = find_parent(u);
 			v = find_parent(v);
-			if (sz[u] > sz[v]) swap(u, v);
+			if (sz[u] > sz[v]) std::swap(u, v);
 			parent[u] = v;
 			sz[v] += sz[u];
 		}
 
-		bool same_set(int u, int v)
+		bool same_set(size_t u, size_t v)
 		{
 			return find_parent(u) == find_parent(v);
 		}
 
-		int find_parent(int u)
+		int find_parent(size_t u)
 		{
 			if (parent[u] == u)  return u;
 			return parent[u] = find_parent(parent[u]);
 		}
-
-		void swap(int& a, int& b)
-		{
-			int c = a;
-			a = b;
-			b = c;
-		}
-
-		int* parent;
-		int* sz;
 	private:
+		size_t* parent;
+		size_t* sz;
 	};
 
 	class BigInteger
@@ -1075,13 +1067,10 @@ namespace abesse
 			node* current_node = root;
 			for (size_t i = 0; i < new_word.size(); i++)
 			{
-				if (current_node->childs[new_word[i]] == nullptr)
-					current_node->childs[new_word[i]] = new node();
-
+				if (current_node->childs[new_word[i]] == nullptr) current_node->childs[new_word[i]] = new node();
 				current_node = current_node->childs[new_word[i]];
 			}
-			if (current_node->word == true)
-				return false;
+			if (current_node->word == true) return false;
 			return current_node->word = true;
 		}
 
@@ -1090,12 +1079,10 @@ namespace abesse
 			node* current_node = root;
 			for (size_t i = 0; i < new_word.size(); i++)
 			{
-				if (current_node->childs[new_word[i]] == nullptr)
-					return false;
+				if (current_node->childs[new_word[i]] == nullptr) return false;
 				current_node = current_node->childs[new_word[i]];
 			}
-			if (current_node->word == true)
-				return true;
+			if (current_node->word == true) return true;
 			return false;
 		}
 
@@ -1104,15 +1091,13 @@ namespace abesse
 		{
 			for (size_t i = 0; i < 26; i++)
 			{
-				if (nd->childs[i] != nullptr)
-					remove_node(nd->childs[i]);
+				if (nd->childs[i] != nullptr) remove_node(nd->childs[i]);
 			}
 			delete nd;
 			nd = nullptr;
 		}
 
 		node* root;
-
 	};
 
 	class SuffixAutomaton
