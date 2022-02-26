@@ -90,6 +90,34 @@ namespace abesse
 		return (a * b) / gcd(a, b);
 	}
 
+	template<typename T>
+	T fast_log2(T x)
+	{
+		std::cout << "log2(" << x << ")=";
+		constexpr size_t bit_count = sizeof(T) * CHAR_BIT;
+#if defined(_MSC_VER)
+		if constexpr (std::is_same<T, unsigned __int64>::value)
+			return bit_count - 1 - __lzcnt64(x);
+		else if constexpr (std::is_same<T, unsigned int>::value)
+			return bit_count - 1 - __lzcnt(x);
+		else if constexpr (std::is_same<T, unsigned short>::value)
+			return bit_count - 1 - __lzcnt16(x);
+		else
+			assert(false, "Invalid type has been specified for fast_log2()");
+#else
+		if constexpr (std::is_same<T, unsigned long long>::value)
+			return bit_count - 1 - __builtin_clzll(x);
+		else if constexpr (std::is_same<T, unsigned long>::value)
+			return bit_count - 1 - __builtin_clzl(x);
+		else if constexpr (std::is_same<T, unsigned int>::value)
+			return bit_count - 1 - __builtin_clz(x);
+		else
+			assert(false, "Invalid type has been specified for fast_log2()");
+#endif
+		
+		return T();
+	}
+
 	bool is_prime(unsigned long long a)
 	{
 		for (size_t i = 2; i * i <= a; i++)
@@ -339,7 +367,7 @@ namespace abesse
 			i += n;
 			for (tree[i] = val; i > 1; i >>= 1)
 			{
-				tree[i >> 1] = Operation(tree[i], tree[i ^ 1]);
+				tree[i >> 1] = Operation::compute(tree[i], tree[i ^ 1]);
 			}
 		}
 	private:
@@ -422,18 +450,10 @@ namespace abesse
 			if (l == r)
 				return Operation::DefVal();
 
-			int p = this->log2_internal(r - l);
+			auto const p = fast_log2<unsigned int>(r - l);
 			return Operation::compute(st[p][l], st[p][r - (1 << p)]);
 		}
 
-		int log2_internal(int x)
-		{
-#if defined(_MSC_VER)
-			return 31 - __lzcnt(x);
-#else
-			return 31 - __builtin_clz(x);
-#endif
-		}
 	};
 
 	template <typename T, class Operation>
@@ -480,14 +500,10 @@ namespace abesse
 		{
 			// Convert half open interval to closed interval
 			if (--r == l - 1) return Operation::DefVal();
-			if (l == r)return st.back()[l];
+			if (l == r) return st.back()[l];
 
 			// Position of the leftmost different bit from the right
-#if defined(_MSC_VER)
-			const auto pos_diff = (sizeof(long long) * CHAR_BIT) - 1 - __lzcnt64(l ^ r);
-#else
-			const auto pos_diff = (sizeof(long long) * CHAR_BIT) - 1 - __builtin_clzll(l ^ r);
-#endif
+			auto const pos_diff = fast_log2<unsigned int>(l ^ r);
 			const auto level = st.size() - 1 - pos_diff;
 			return Operation::compute(st[level][l], st[level][r]);
 		}
@@ -1288,16 +1304,6 @@ int main(int argc, char const** argv)
 	freopen("in.txt", "r", stdin);
 #endif
 
-	vector<ll> v = { 2, 3, 4, 1, 4, 5, 6, 7, 5, 9, 10, 12 };
-	FenwickTree<ll, ABSum<ll>, BEGIN_QUERY > s(v);
-	cout << s.query(0) << endl;
-	cout << s.query(1) << endl;
-	cout << s.query(2) << endl;
-	cout << s.query(3) << endl;
-	cout << s.query(4) << endl;
-	cout << s.query(5) << endl;
-	cout << s.query(6) << endl;
-	cout << s.query(v.size()) << endl;
 
 	return 0;
 }
