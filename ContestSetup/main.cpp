@@ -1300,10 +1300,10 @@ int main(int argc, char const** argv)
 	cout.tie(0);
 	cin.tie(0);
 	constexpr int  mult = 1;
-	int _ = 1;
+	int x = 1;
 	if (mult)
-		std::cin >> _;
-	while (_--)
+		std::cin >> x;
+	while (x --> 0)
 	{
 		solve();
 	}
