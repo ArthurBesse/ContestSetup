@@ -53,6 +53,7 @@
 #include <streambuf>
 #include <string>
 #include <typeinfo>
+#include <type_traits>
 #include <utility>
 #include <valarray>
 #include <vector>
@@ -114,7 +115,7 @@ namespace abesse
 		else if constexpr (std::is_same<T, unsigned int>::value)
 			return bit_count - 1 - __builtin_clz(x);
 		else
-			static_assert(true == std::is_same<T, unsigned unsigned long long>::value
+			static_assert(true == std::is_same<T, unsigned long long>::value
 				|| true == std::is_same<T, unsigned long>::value
 				|| true == std::is_same<T, unsigned int>::value
 				, "Invalid type has been specified for fast_log2()");
@@ -409,7 +410,7 @@ namespace abesse
 		{
 			T ret = Operation::DefVal();
 
-			if (FenwickQueryType::BEGIN_QUERY == QueryType)
+			if constexpr (FenwickQueryType::BEGIN_QUERY == QueryType)
 			{
 				--r;
 				for (; r >= 0; r = (r & (r + 1)) - 1) ret = Operation::compute(tree[r], ret);
@@ -422,7 +423,7 @@ namespace abesse
 		//In case of min/max operation, new value should be smaller/bigger than current
 		void update(int idx, T const& val) 
 		{
-			if (FenwickQueryType::BEGIN_QUERY == QueryType)
+			if constexpr (FenwickQueryType::BEGIN_QUERY == QueryType)
 				for (; idx < n; idx = idx | (idx + 1)) tree[idx] = Operation::compute(tree[idx], val);
 			else
 				for (; idx >= 0; idx = (idx & (idx + 1)) - 1) tree[idx] = Operation::compute(tree[idx], val);
@@ -1284,13 +1285,28 @@ typedef long long ll;
 typedef unsigned int ui;
 
 
+void solve()
+{
+	size_t n; cin >> n;
 
+}
 
 int main(int argc, char const** argv)
 {
 #ifdef ABESSE
 	freopen("in.txt", "r", stdin);
 #endif
+	ios_base::sync_with_stdio(0);
+	cout.tie(0);
+	cin.tie(0);
+	constexpr int  mult = 1;
+	int _ = 1;
+	if (mult)
+		std::cin >> _;
+	while (_--)
+	{
+		solve();
+	}
 
 	return 0;
 }
