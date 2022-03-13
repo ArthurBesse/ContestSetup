@@ -350,7 +350,7 @@ namespace abesse
 
 		void build()
 		{
-			for (int i = n - 1; i > 0; --i)
+			for (std::size_t i = n - 1; i > 0; --i)
 			{
 				tree[i] = Operation::compute(tree[i << 1], tree[i << 1 | 1]);
 			}
@@ -549,7 +549,7 @@ namespace abesse
 			return find_parent(u) == find_parent(v);
 		}
 
-		int find_parent(size_t u)
+		size_t find_parent(size_t u)
 		{
 			if (parent[u] == u)  return u;
 			return parent[u] = find_parent(parent[u]);
@@ -1269,6 +1269,221 @@ namespace abesse
 			}
 		}
 	};
+
+	struct BipGraph final
+	{
+		// m and n are number of vertices on left
+		// and right sides of Bipartite Graph
+		std::size_t m;
+		std::size_t n;
+
+		// adj[u] stores adjacents of left side
+		// vertex 'u'. The value of u ranges from 1 to m.
+		// 0 is used for dummy vertex
+		std::vector<std::list<int> > adj;
+
+		// Constructor
+		BipGraph(int m, int n)
+			: m(m)
+			, n(n)
+			, adj(m + 1)
+
+		{
+		}
+
+		// To add edge from u to v and v to u
+		// 1 <= u <= m; 1 <= v <= n
+		void addEdge(int u, int v)
+		{
+			adj[u].push_back(v); // Add u to v’s list.
+		}
+	};
+
+	class HopcroftKarp final
+	{
+		// pairU[u] stores pair of u in matching where u
+		// is a vertex on left side of Bipartite Graph.
+		// If u doesn't have any pair, then pairU[u] is 0
+		std::vector<int> pairU;
+
+		// pairV[v] stores pair of v in matching. If v
+		// doesn't have any pair, then pairU[v] is 0
+		std::vector<int> pairV;
+
+		// dist[u] stores distance of left side vertices
+		// dist[u] is one more than dist[u'] if u is next
+		// to u'in augmenting path
+		std::vector<int> dist;
+
+		BipGraph const& bg;
+		int inf = 2147483647;
+	public:
+		HopcroftKarp(BipGraph const& bipgraph)
+			: pairU(bipgraph.m + 1)
+			, pairV(bipgraph.n + 1)
+			, dist(bipgraph.m + 1)
+			, bg(bipgraph)
+		{
+		}
+
+		// Returns size of maximum matching
+		int run()
+		{
+			// Initialize result
+			int result = 0;
+
+			// Keep updating the result while there is an
+			// augmenting path.
+			while (bfs())
+			{
+				// Find a free vertex
+				for (int u = 1; u <= bg.m; u++)
+
+					// If current vertex is free and there is
+					// an augmenting path from current vertex
+					if (pairU[u] == 0 && dfs(u))
+						result++;
+			}
+			return result;
+		}
+		
+		std::vector<int> const& get_pairU() const
+		{
+			return pairU;
+		}
+		std::vector<int> const& get_pairV() const
+		{
+			return pairV;
+		}
+
+	private:
+		// Returns true if there is an augmenting path, else returns false
+		bool bfs()
+		{
+			std::queue<int> Q; //an integer queue
+
+			// First layer of vertices (set distance as 0)
+			for (int u = 1; u <= bg.m; u++)
+			{
+				// If this is a free vertex, add it to queue
+				if (pairU[u] == 0)
+				{
+					// u is not matched
+					dist[u] = 0;
+					Q.push(u);
+				}
+
+				// Else set distance as infinite so that this vertex
+				// is considered next time
+				else dist[u] = inf;
+			}
+
+			// Initialize distance to NIL as infinite
+			dist[0] = inf;
+
+			// Q is going to contain vertices of left side only.
+			while (!Q.empty())
+			{
+				// Dequeue a vertex
+				int u = Q.front();
+				Q.pop();
+
+				// If this node is not NIL and can provide a shorter path to NIL
+				if (dist[u] < dist[0])
+				{
+					// Get all adjacent vertices of the dequeued vertex u
+					std::list<int>::const_iterator i;
+					for (i = bg.adj[u].begin(); i != bg.adj[u].end(); ++i)
+					{
+						int v = *i;
+
+						// If pair of v is not considered so far
+						// (v, pairV[V]) is not yet explored edge.
+						if (dist[pairV[v]] == inf)
+						{
+							// Consider the pair and add it to queue
+							dist[pairV[v]] = dist[u] + 1;
+							Q.push(pairV[v]);
+						}
+					}
+				}
+			}
+
+			// If we could come back to NIL using alternating path of distinct
+			// vertices then there is an augmenting path
+			return (dist[0] != inf);
+		}
+
+		// Returns true if there is an augmenting path beginning with free vertex u
+		bool dfs(int u)
+		{
+			if (u != 0)
+			{
+				std::list<int>::const_iterator i;
+				for (i = bg.adj[u].begin(); i != bg.adj[u].end(); ++i)
+				{
+					// Adjacent to u
+					int v = *i;
+
+					// Follow the distances set by BFS
+					if (dist[pairV[v]] == dist[u] + 1)
+					{
+						// If dfs for pair of v also returns
+						// true
+						if (dfs(pairV[v]) == true)
+						{
+							pairV[v] = u;
+							pairU[u] = v;
+							return true;
+						}
+					}
+				}
+
+				// If there is no augmenting path beginning with u.
+				dist[u] = inf;
+				return false;
+			}
+			return true;
+		}
+	};
+
+	class Kuhn final
+	{
+		std::vector<int> mt; //matching
+		std::vector<char> used;
+		BipGraph const& bg;
+	public:
+		Kuhn(BipGraph const& bipgraph)
+			: mt(bipgraph.n + 1, 0)
+			, bg(bipgraph)
+		{
+		}
+
+		std::vector<int> const & run()
+		{
+			for (size_t i = 1; i <= bg.m; ++i)
+			{
+				used.assign(bg.m + 1, 0);
+				attempt(i);
+			}
+			return mt;
+		}
+
+	private:
+		bool attempt(int v)
+		{
+			if (used[v] == 1)
+				return false;
+			used[v] = 1;
+			for (std::list<int>::const_iterator to = bg.adj[v].begin(); to != bg.adj[v].end(); ++to) {
+				if (mt[*to] == 0 || attempt(mt[*to])) {
+					mt[*to] = v;
+					return true;
+				}
+			}
+			return false;
+		}
+	};
 }
 
 using namespace abesse;
@@ -1287,9 +1502,19 @@ typedef unsigned int ui;
 
 void solve()
 {
-	size_t n; cin >> n;
+	BipGraph g(4, 4);
+	HopcroftKarp hk(g);
+	
+	g.addEdge(1, 2);
+	g.addEdge(1, 3);
+	g.addEdge(2, 1);
+	g.addEdge(3, 2);
+	g.addEdge(4, 2);
+	g.addEdge(4, 4);
 
+	cout << hk.run();
 }
+
 
 int main(int argc, char const** argv)
 {
@@ -1299,7 +1524,7 @@ int main(int argc, char const** argv)
 	ios_base::sync_with_stdio(0);
 	cout.tie(0);
 	cin.tie(0);
-	constexpr int  mult = 1;
+	constexpr int  mult = 0;
 	int x = 1;
 	if (mult)
 		std::cin >> x;
