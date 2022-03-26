@@ -15,13 +15,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
-#include <ccomplex>
 #include <cfenv>
 #include <cinttypes>
-#include <cstdalign>
-#include <cstdbool>
 #include <cstdint>
-#include <ctgmath>
 #include <cwchar>
 #include <cwctype>
 #include <algorithm>
@@ -197,6 +193,7 @@ namespace abesse
 			}
 		}
 
+
 		bool is_prime(int x)
 		{
 			return (x == erato[x]);
@@ -207,7 +204,7 @@ namespace abesse
 			return erato[x];
 		}
 
-		void get_pr_divs(unsigned long long x, std::vector<unsigned long long>& divs)
+		void get_pr_divs(unsigned long long x, std::vector<unsigned long long>& divs) 
 		{
 			for (size_t i = 2; i * i <= x; i++)
 			{
@@ -230,7 +227,7 @@ namespace abesse
 		int mu_[MAXN];
 		Erato<MAXN> erato;
 	public:
-		Mebius()
+		consteval Mebius()
 		{
 			mu[1] = 1;
 			for (size_t i = 2; i < MAXN; ++i)
@@ -377,10 +374,7 @@ namespace abesse
 	private:
 		static unsigned long long count_size(size_t x)
 		{
-			unsigned long long ans = 1;
-			while (ans < x)
-				ans <<= 1;
-			return ans << 1;
+			return 1ull << (fast_log2(x) + 1);
 		}
 
 	};
@@ -467,8 +461,8 @@ namespace abesse
 		explicit DisjointSparseTable(std::vector<T> arr) 
 		{
 			// Find the highest cnt such that pow2 = 2^cnt >= x
-			int pow2 = 1, cnt = 0;
-			for (; pow2 < arr.size(); pow2 *= 2, ++cnt);
+			size_t const cnt = fast_log2(arr.size()) + 1;
+			size_t const pow2 = 1ull << cnt;
 
 			arr.resize(pow2, Operation::DefVal());
 			st.resize(cnt, std::vector<T>(pow2));
@@ -1502,17 +1496,10 @@ typedef unsigned int ui;
 
 void solve()
 {
-	BipGraph g(4, 4);
-	HopcroftKarp hk(g);
-	
-	g.addEdge(1, 2);
-	g.addEdge(1, 3);
-	g.addEdge(2, 1);
-	g.addEdge(3, 2);
-	g.addEdge(4, 2);
-	g.addEdge(4, 4);
+	vector<int> v = { 1, 2, 3, 4, 5, 6, -1, -3, 0, 88, 1, 2, 3, 14, 15, 16 };
+	SegTree<int, ABMin<int>> st(v);
+	cout << st.query(0, v.size()) << endl;
 
-	cout << hk.run();
 }
 
 
