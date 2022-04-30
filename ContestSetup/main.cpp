@@ -1245,6 +1245,24 @@ namespace abesse
 		}
 	};
 
+	class SuffixFunction
+	{
+	public:
+		void operator()(std::string const& s, std::vector<int>& res)
+		{
+			int n = static_cast<int>(s.length());
+			res.assign(n, 0);
+			for (int i = n - 2; i >= 0; i--) {
+				int j = res[i + 1];
+				while (j > 0 && s[i] != s[n - j - 1])
+					j = res[n - j];
+				if (s[i] == s[n - j - 1])
+					j++;
+				res[i] = j;
+			}
+		}
+	};
+
 	class ZFunction
 	{
 	public:
@@ -1488,17 +1506,41 @@ using namespace std;
 #define LMIN -9223372036854775808ll
 #define IMIN -2147483648
 #define all(a) a.begin(), a.end()
+#define read(x) for(auto &elem : x) cin >> elem;
 
 typedef unsigned long long ull;
 typedef long long ll;
 typedef unsigned int ui;
 
 
+
+
 void solve()
 {
-	vector<int> v = { 1, 2, 3, 4, 5, 6, -1, -3, 0, 88, 1, 2, 3, 14, 15, 16 };
-	SegTree<int, ABMin<int>> st(v);
-	cout << st.query(0, v.size()) << endl;
+	string s;
+	cin >> s;
+
+	ZFunction zf;
+	vector<int> z;
+	zf(s, z);
+
+	PrefixFunction pf;
+	vector<int> p;
+	pf(s, p);
+
+	int sz = 0, t = 0;
+	for (size_t i = 0; i < z.size(); i++)
+	{
+		if (sz < p[i] && z[i] >= p[i])
+		{
+			sz = p[i];
+			t = i;
+		}
+	}
+	if (sz == 0)
+		cout << "Just a legend\n";
+	else
+		cout << s.substr(t, sz) << '\n';
 
 }
 
@@ -1515,7 +1557,7 @@ int main(int argc, char const** argv)
 	int x = 1;
 	if (mult)
 		std::cin >> x;
-	while (x --> 0)
+	while (x-- > 0)
 	{
 		solve();
 	}
