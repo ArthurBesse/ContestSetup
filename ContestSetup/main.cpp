@@ -180,7 +180,7 @@ namespace abesse
 	template<size_t MAXN>
 	class Erato
 	{
-		int erato[MAXN];
+		int erato[MAXN]{};
 	public:
 		Erato()
 		{
@@ -210,14 +210,11 @@ namespace abesse
 			{
 				if (this->is_prime(i))
 				{
-					if (x % i == 0)
-						divs.push_back(i);
-					while (x % i == 0)
-						x /= i;
+					if (x % i == 0) divs.push_back(i);
+					while (x % i == 0) x /= i;
 				}
 			}
-			if (x != 1)
-				divs.push_back(x);
+			if (x != 1) divs.push_back(x);
 		}
 	};
 
@@ -374,7 +371,7 @@ namespace abesse
 	private:
 		static unsigned long long count_size(size_t x)
 		{
-			return 1ull << (fast_log2(x) + 1);
+			return 1ull << (fast_log2(x) + 2);
 		}
 
 	};
@@ -1307,7 +1304,7 @@ namespace abesse
 		// 1 <= u <= m; 1 <= v <= n
 		void addEdge(int u, int v)
 		{
-			adj[u].push_back(v); // Add u to v’s list.
+			adj[u].push_back(v); // Add u to vâ€™s list.
 		}
 	};
 
@@ -1507,6 +1504,7 @@ using namespace std;
 #define IMIN -2147483648
 #define all(a) a.begin(), a.end()
 #define read(x) for(auto &elem : x) cin >> elem;
+#define forall(x) for(auto const& e : x)
 
 typedef unsigned long long ull;
 typedef long long ll;
@@ -1517,30 +1515,10 @@ typedef unsigned int ui;
 
 void solve()
 {
-	string s;
-	cin >> s;
-
-	ZFunction zf;
-	vector<int> z;
-	zf(s, z);
-
-	PrefixFunction pf;
-	vector<int> p;
-	pf(s, p);
-
-	int sz = 0, t = 0;
-	for (size_t i = 0; i < z.size(); i++)
-	{
-		if (sz < p[i] && z[i] >= p[i])
-		{
-			sz = p[i];
-			t = i;
-		}
-	}
-	if (sz == 0)
-		cout << "Just a legend\n";
-	else
-		cout << s.substr(t, sz) << '\n';
+	Erato<5000> e;
+	std::vector<ull> v;
+	e.get_pr_divs(7*13, v);
+	forall(v) cout << e << " ";
 
 }
 
