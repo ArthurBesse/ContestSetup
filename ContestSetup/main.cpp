@@ -127,6 +127,28 @@ namespace abesse
 		}
 		return a != 1;
 	}
+	
+	//Next larger integer with same binary weight
+	unsigned int snoob(unsigned int x)
+	{
+		unsigned int rightOne;
+		unsigned int nextHigherOneBit;
+		unsigned int rightOnesPattern;
+
+		unsigned int next = 0;
+
+		if (x)
+		{
+			rightOne = x & -(signed)x;
+			nextHigherOneBit = x + rightOne;
+			rightOnesPattern = x ^ nextHigherOneBit;
+			rightOnesPattern = (rightOnesPattern) / rightOne;
+			rightOnesPattern >>= 2;
+			next = nextHigherOneBit | rightOnesPattern;
+		}
+
+		return next;
+	}
 
 	/*
 	* commutative_cantor_numeration(x, y) == commutative_cantor_numeration(y, x)
