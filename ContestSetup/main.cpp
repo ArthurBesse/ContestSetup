@@ -1502,15 +1502,64 @@ typedef unsigned long long ull;
 typedef long long ll;
 typedef unsigned int ui;
 
-
+struct qr
+{
+	int l;
+	int r;
+	int i;
+	int ans;
+	qr(int l, int r, int i)
+		: i(i), l(l), r(r), ans(0)
+	{}
+};
 
 
 void solve()
 {
-	Erato<5000> e;
-	std::vector<ull> v;
-	e.get_pr_divs(7*13, v);
-	forall(v) cout << e << " ";
+	string s;
+	cin >> s;
+	int q;
+	cin >> q;
+	vector<qr> qrs;
+	qrs.reserve(q);
+	for (size_t i = 0; i < q; i++)
+	{
+		int l, r;
+		cin >> l >> r;
+		qrs.emplace_back(l - 1, r, i);
+	}
+	sort(all(qrs), [](qr const& f, qr const& s) {
+		if (f.l != s.l) return f.l < s.l;
+		return f.r < s.r;
+		});
+
+
+	int l = -1, r = 0;
+	unique_ptr<SuffixAutomaton> sap;
+
+	for (size_t i = 0; i < qrs.size(); i++)
+	{
+		if (qrs[i].l == l)
+		{
+			while (r < qrs[i].r) sap->extend(s[r++]);
+		}
+		else
+		{
+			sap.reset(new SuffixAutomaton(s.substr(qrs[i].l, qrs[i].r - qrs[i].l)));
+			l = qrs[i].l;
+			r = qrs[i].r;
+		}
+		qrs[i].ans = sap->get_number_of_distinct_substrings();
+	}
+
+	sort(all(qrs), [](qr const& f, qr const& s) {
+		return f.i < s.i;
+		});
+
+	for (size_t i = 0; i < qrs.size(); i++)
+	{
+		cout << qrs[i].ans << endl;
+	}
 
 }
 
@@ -1534,3 +1583,4 @@ int main(int argc, char const** argv)
 
 	return 0;
 }
+
