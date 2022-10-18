@@ -1485,6 +1485,84 @@ namespace abesse
 			return false;
 		}
 	};
+
+	namespace persistence
+	{
+		template<typename T>
+		class Array final
+		{
+			struct Node 
+			{
+				T val;
+				Node* l;
+				Node* r;
+				Node(T x) : val(x), l(nullptr), r(nullptr) {}
+				Node(Node* ll, Node* rr) : val(), l(ll), r(rr) {}
+			};
+
+			T* data;
+			size_t size;
+			std::vector<Node*> roots;
+
+			Node* build(size_t l, size_t r) 
+			{
+				if (l + 1 == r) return new Node(data[l]);
+				size_t mid = (l + r) / 2;
+				return new Node(build(l, mid), build(mid, r));
+			}
+
+			Node* update(Node* node, T val, size_t pos, size_t l, size_t r) 
+			{
+				if (l + 1 == r) return new Node(val);
+				size_t mid = (l + r) / 2;
+				if (pos > mid) return new Node(node->l, update(node->r, val, pos, mid, r));
+				else return new Node(update(node->l, val, pos, l, mid), node->r);
+			}
+
+			T query(Node* node, size_t pos, size_t l, size_t r) 
+			{
+				if (l + 1 == r) return node->val;
+				size_t mid = (l + r) / 2;
+				if (pos > mid) return query(node->r, pos, mid, r);
+				return query(node->l, pos, l, mid);
+			}
+
+			void delete_node(Node* node)
+			{
+				if (node == nullptr) return;
+				delete_node(node->l);
+				delete_node(node->r);
+				delete node;
+			}
+
+		public:
+			Array(T* data, size_t size, size_t max_number_of_revisions)
+				: data(data)
+				, size(size)
+				, roots(max_number_of_revisions, nullptr)
+			{
+				roots[0] = build(0, size);
+			}
+
+			~Array()
+			{
+				//for (size_t i = 0; i < roots.size(); i++)
+					//delete_node(roots[i]);
+			}
+
+			T get_item(size_t index, size_t time) 
+			{
+				// Gets the array item at a given index and time
+				return query(roots[time], index, 0, size);
+			}
+
+			void update_item(size_t index, size_t value, size_t prev_time, size_t curr_time) 
+			{
+				// Updates the array item at a given index and time
+				roots[curr_time] = update(roots[prev_time], value, index, 0, size);
+			}
+		};
+	}
 }
 
 using namespace abesse;
@@ -1516,50 +1594,40 @@ struct qr
 
 void solve()
 {
+	
+	int n1;
+	cin >> n1;
+
+	vector<int> arr(n1 + 3);
+	for (int i = 0; i < n1; ++i)
+		cin >> arr[i];
+
+	size_t m;
+	cin >> m;
+	persistence::Array<int> parr(arr.data(), arr.size(), m);
+
 	string s;
-	cin >> s;
-	int q;
-	cin >> q;
-	vector<qr> qrs;
-	qrs.reserve(q);
-	for (size_t i = 0; i < q; i++)
+	int i, j, x;
+
+	int count = 1;
+
+	for (int k = 1; k <= m; ++k)
 	{
-		int l, r;
-		cin >> l >> r;
-		qrs.emplace_back(l - 1, r, i);
-	}
-	sort(all(qrs), [](qr const& f, qr const& s) {
-		if (f.l != s.l) return f.l < s.l;
-		return f.r < s.r;
-		});
-
-
-	int l = -1, r = 0;
-	unique_ptr<SuffixAutomaton> sap;
-
-	for (size_t i = 0; i < qrs.size(); i++)
-	{
-		if (qrs[i].l == l)
+		cin >> s;
+		if (s[0] == 'c')
 		{
-			while (r < qrs[i].r) sap->extend(s[r++]);
+			cin >> i >> j >> x;
+			parr.update_item(j, x, i - 1, count);
+			++count;
 		}
 		else
 		{
-			sap.reset(new SuffixAutomaton(s.substr(qrs[i].l, qrs[i].r - qrs[i].l)));
-			l = qrs[i].l;
-			r = qrs[i].r;
+			cin >> i >> j;
+			cout << parr.get_item(j, i - 1) << endl;
 		}
-		qrs[i].ans = sap->get_number_of_distinct_substrings();
 	}
 
-	sort(all(qrs), [](qr const& f, qr const& s) {
-		return f.i < s.i;
-		});
 
-	for (size_t i = 0; i < qrs.size(); i++)
-	{
-		cout << qrs[i].ans << endl;
-	}
 
 }
 
