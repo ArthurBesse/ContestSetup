@@ -1562,6 +1562,90 @@ namespace abesse
 				roots[curr_time] = update(roots[prev_time], value, index, 0, size);
 			}
 		};
+
+		template<class T, class Operation>
+		class SegTree
+		{
+			struct Node
+			{
+				T val;
+				size_t s;
+				size_t e;
+				Node* l;
+				Node* r;
+				
+				Node(T x, size_t start, size_t end, Node* left_child = nullptr, Node* right_child = nullptr) 
+					: val(x)
+					, s(start)
+					, e(end)
+					, l(left_child)
+					, r(right_child)
+				{}
+			};
+
+			T* data;
+			size_t size;
+			std::vector<Node*> roots;
+			
+			Node* build(size_t l, size_t r)
+			{
+				if (l + 1 == r) return new Node(data[l], l, r);
+				size_t mid = (l + r) / 2;
+				Node* lc = build(l, mid);
+				Node* rc = build(mid, r);
+				Operation::compute(lc->val, rc->val);
+				return new Node(Operation::compute(lc->val, rc->val), l, r, lc, rc);
+			}
+
+			Node* update_impl(Node* node, T val, size_t pos)
+			{
+				if (node->s + 1 == node->e) return new Node(val, node->s, node->e);
+				size_t mid = (node->s + node->e) / 2;
+				if (pos < mid) { Node* lc = update_impl(node->l, val, pos); return new Node(Operation::compute(lc->val, node->r->val), node->s, node->e, lc, node->r); } 
+				else { Node* rc = update_impl(node->r, val, pos); return new Node(Operation::compute(node->l->val, rc->val), node->s, node->e, node->l, rc); }
+			}
+
+			T query_impl(Node* node, size_t l, size_t r)
+			{
+				if (node->e <= l || r <= node->s) return Operation::DefVal();
+				if (l <= node->s && node->e <= r) return node->val;
+				if (r <= node->l->e) return query_impl(node->l, l, r);
+				if (node->r->s <= l) return query_impl(node->r, l, r);
+				size_t const mid = (node->s + node->e) / 2;
+				return Operation::compute(query_impl(node->l, l, mid), query_impl(node->r, mid, r));
+			}
+
+			void delete_node(Node* node)
+			{
+				if (node == nullptr) return;
+				delete_node(node->l);
+				delete_node(node->r);
+				delete node;
+			}
+		public:
+			SegTree(T* data, size_t n, size_t max_number_of_revisions)
+				: data(data)
+				, size(n)
+				, roots(max_number_of_revisions, nullptr)
+			{
+				roots[0] = build(0, size);
+			}
+
+			T query(size_t l, size_t r, size_t revision)
+			{
+				return query_impl(roots[revision], l, r);
+			}
+			void update(size_t index, T val, size_t revision, size_t new_revision)
+			{
+				roots[new_revision] = update_impl(roots[revision], val, index);
+			}
+		private:
+			static unsigned long long count_size(size_t x)
+			{
+				return 1ull << (fast_log2(x) + 2);
+			}
+
+		};
 	}
 }
 
@@ -1595,37 +1679,28 @@ struct qr
 void solve()
 {
 	
-	int n1;
-	cin >> n1;
+	//int n, m, q;
+	//cin >> n >> m;
 
-	vector<int> arr(n1 + 3);
-	for (int i = 0; i < n1; ++i)
-		cin >> arr[i];
+	int n = 8;
+	vector<int> a(n);
+	for (int i = 0; i < n; ++i)
+		a[i] = i;
 
-	size_t m;
-	cin >> m;
-	persistence::Array<int> parr(arr.data(), arr.size(), m);
+	persistence::SegTree<int, ABSum<int> > st(a.data(), a.size(), 1024);
 
-	string s;
-	int i, j, x;
+	cout << st.query(0, 3, 0) << endl;
+	cout << st.query(2, 5, 0) << endl;
+	st.update(5, 0, 0, 1);
+	st.update(5, 5, 1, 2);
+	cout << st.query(3, 8, 1) << endl;
+	cout << st.query(3, 8, 2) << endl;
+	st.update(7, 0, 2, 3);
+	cout << st.query(3, 8, 3) << endl;
+	cout << st.query(0, 1, 0) << endl;
+	cout << st.query(0, 1, 0) << endl;
 
-	int count = 1;
-
-	for (int k = 1; k <= m; ++k)
-	{
-		cin >> s;
-		if (s[0] == 'c')
-		{
-			cin >> i >> j >> x;
-			parr.update_item(j, x, i - 1, count);
-			++count;
-		}
-		else
-		{
-			cin >> i >> j;
-			cout << parr.get_item(j, i - 1) << endl;
-		}
-	}
+	
 
 
 
