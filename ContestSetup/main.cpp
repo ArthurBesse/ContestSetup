@@ -1511,20 +1511,20 @@ namespace abesse
 				return new Node(build(l, mid), build(mid, r));
 			}
 
-			Node* update(Node* node, T val, size_t pos, size_t l, size_t r) 
+			Node* update_impl(Node* node, T val, size_t pos, size_t l, size_t r)
 			{
 				if (l + 1 == r) return new Node(val);
 				size_t mid = (l + r) / 2;
-				if (pos > mid) return new Node(node->l, update(node->r, val, pos, mid, r));
-				else return new Node(update(node->l, val, pos, l, mid), node->r);
+				if (pos < mid) return new Node(update_impl(node->l, val, pos, l, mid), node->r);
+				return new Node(node->l, update_impl(node->r, val, pos, mid, r));
 			}
 
-			T query(Node* node, size_t pos, size_t l, size_t r) 
+			T query_impl(Node* node, size_t pos, size_t l, size_t r)
 			{
 				if (l + 1 == r) return node->val;
 				size_t mid = (l + r) / 2;
-				if (pos > mid) return query(node->r, pos, mid, r);
-				return query(node->l, pos, l, mid);
+				if (pos < mid) return query_impl(node->l, pos, l, mid);
+				return query_impl(node->r, pos, mid, r);
 			}
 
 			void delete_node(Node* node)
@@ -1550,16 +1550,16 @@ namespace abesse
 					//delete_node(roots[i]);
 			}
 
-			T get_item(size_t index, size_t time) 
+			T query(size_t index, size_t revision)
 			{
 				// Gets the array item at a given index and time
-				return query(roots[time], index, 0, size);
+				return query_impl(roots[revision], index, 0, size);
 			}
 
-			void update_item(size_t index, size_t value, size_t prev_time, size_t curr_time) 
+			void update(size_t index, size_t value, size_t revision, size_t new_revision) 
 			{
 				// Updates the array item at a given index and time
-				roots[curr_time] = update(roots[prev_time], value, index, 0, size);
+				roots[new_revision] = update_impl(roots[revision], value, index, 0, size);
 			}
 		};
 
@@ -1678,29 +1678,38 @@ struct qr
 
 void solve()
 {
-	
-	//int n, m, q;
-	//cin >> n >> m;
 
-	int n = 8;
-	vector<int> a(n);
-	for (int i = 0; i < n; ++i)
-		a[i] = i;
+	int n1;
+	cin >> n1;
 
-	persistence::SegTree<int, ABSum<int> > st(a.data(), a.size(), 1024);
+	vector<int> arr(n1 + 3);
+	for (int i = 0; i < n1; ++i)
+		cin >> arr[i];
 
-	cout << st.query(0, 3, 0) << endl;
-	cout << st.query(2, 5, 0) << endl;
-	st.update(5, 0, 0, 1);
-	st.update(5, 5, 1, 2);
-	cout << st.query(3, 8, 1) << endl;
-	cout << st.query(3, 8, 2) << endl;
-	st.update(7, 0, 2, 3);
-	cout << st.query(3, 8, 3) << endl;
-	cout << st.query(0, 1, 0) << endl;
-	cout << st.query(0, 1, 0) << endl;
+	size_t m;
+	cin >> m;
+	persistence::SegTree<int, ABSum<int> > parr(arr.data(), arr.size(), m);
 
-	
+	string s;
+	int i, j, x;
+
+	int count = 1;
+
+	for (int k = 1; k <= m; ++k)
+	{
+		cin >> s;
+		if (s[0] == 'c')
+		{
+			cin >> i >> j >> x;
+			parr.update(j - 1, x, i - 1, count);
+			++count;
+		}
+		else
+		{
+			cin >> i >> j;
+			cout << parr.query(j - 1, j, i - 1) << endl;
+		}
+	}
 
 
 
