@@ -314,19 +314,19 @@ namespace abesse
 	public:
 		static void compute(std::vector<std::complex<T>>& polinom, bool const inverse = false)
 		{
-			int const n = static_cast<int>(polinom.size());
+			size_t const n = polinom.size();
 			
-			for (int i = 1, j = 0; i < n; ++i) 
+			for (size_t i = 1, j = 0; i < n; ++i)
 			{
-				int bit = n >> 1;
+				size_t bit = n >> 1;
 				for (; j & bit; bit >>= 1) j ^= bit;
 				j ^= bit;
 				if (i < j) std::swap(polinom[i], polinom[j]);
 			}
 
-			for (int len = 2; len <= n; len <<= 1) 
+			for (size_t len = 2; len <= n; len <<= 1) 
 			{
-				double ang = 2 * M_PI / len * (inverse ? -1 : 1);
+				double ang = 2 * M_PI / static_cast<std::make_unsigned<decltype(len)>::type >(len) * (inverse ? -1 : 1);
 				std::complex<T> const wlen(std::cos(ang), std::sin(ang));
 				for (int i = 0; i < n; i += len) 
 				{
@@ -385,7 +385,7 @@ namespace abesse
 
 		static void compute(std::vector<T>& polinom, ModularRoot mr, bool const inverse = false)
 		{
-			size_t n = polinom.size();
+			size_t const n = polinom.size();
 
 			for (size_t i = 1, j = 0; i < n; ++i)
 			{
@@ -1822,8 +1822,8 @@ typedef unsigned int ui;
 
 void solve()
 {
-	vector<int64_t> a = { 2, 3, 4, 1, 9, 78, 3, 4, 33, 54, 22, 66, 5, 65, 65, 32 };
-	vector<int64_t> b = { 4, 1, 4, 3, 4, 4, 56, 87, 45, 77, 26, 26, 22, 1, 103, 0 };
+	vector<int64_t> a = { 2, 3838, 4383, 4801, 93980, 78, 34084, 27574, 3933, 54940, 240802, 66408, 5, 65, 65, 32 };
+	vector<int64_t> b = { 73684, 5001, 44799, 177383, 17174, 712684, 572686, 72787, 6527545, 77, 26, 26, 22, 1, 103, 0 };
 
 	std::vector<int64_t> res1;
 	NumberTheoreticTransform<int64_t>::ModularRoot mr(7340033, 5, 4404020, 1ull << 20);
@@ -1834,7 +1834,7 @@ void solve()
 
 	std::vector<int64_t> res2;
 	FastFourierTransform<double>::multiply<int64_t>(a, b, res2);
-	forall(res2) cout << e << " ";
+	forall(res2) cout << e % mr.mod << " ";
 }
 
 
