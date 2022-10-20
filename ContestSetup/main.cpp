@@ -326,7 +326,7 @@ namespace abesse
 
 			for (size_t len = 2; len <= n; len <<= 1) 
 			{
-				double ang = 2 * M_PI / static_cast<std::make_unsigned<decltype(len)>::type >(len) * (inverse ? -1 : 1);
+				T ang = 2 * M_PI / static_cast<std::make_unsigned<decltype(len)>::type >(len) * (inverse ? -1 : 1);
 				std::complex<T> const wlen(std::cos(ang), std::sin(ang));
 				for (int i = 0; i < n; i += len) 
 				{
@@ -1820,7 +1820,7 @@ typedef long long ll;
 typedef unsigned int ui;
 
 
-void solve()
+void solv1e()
 {
 	vector<int64_t> a = { 2, 3838, 4383, 4801, 93980, 78, 34084, 27574, 3933, 54940, 240802, 66408, 5, 65, 65, 32 };
 	vector<int64_t> b = { 73684, 5001, 44799, 177383, 17174, 712684, 572686, 72787, 6527545, 77, 26, 26, 22, 1, 103, 0 };
@@ -1835,6 +1835,46 @@ void solve()
 	std::vector<int64_t> res2;
 	FastFourierTransform<double>::multiply<int64_t>(a, b, res2);
 	forall(res2) cout << e % mr.mod << " ";
+}
+vector<int64_t> trunc(vector<int64_t>const & p, size_t k)
+{
+	vector<int64_t> res;
+	for (size_t i = 0; i < k; i++)
+	{
+		size_t temp = 0;
+		for (size_t j = i; j < p.size(); j += k)
+			temp += p[j];
+		res.push_back(temp % 100000);
+	}
+	return res;
+}
+
+vector<int64_t> power(size_t n, vector<int64_t> const& p, int k)
+{
+	if (n == 1) return p;
+	if (n == 0) return { 1 };
+	vector<int64_t> res;
+	if (n % 2)
+		FastFourierTransform<long double>::multiply<int64_t>(trunc(p, k), trunc(power(n - 1, p, k), k), res);
+	else
+	{
+		auto temp = trunc(power(n / 2, p, k), k);
+		FastFourierTransform<long double>::multiply<int64_t>(temp, temp, res);
+	}
+	return trunc(res, k);
+}
+
+void solve()
+{
+	size_t n, k;
+	cin >> n >> k;
+
+	
+	auto v = power(n, { 1, 1 }, k);
+	string s = to_string(v[0]);
+
+	cout << v[0] << endl;
+
 }
 
 
