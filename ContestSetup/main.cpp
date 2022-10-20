@@ -1,4 +1,5 @@
 #define _CRT_SECURE_NO_WARNINGS
+#define _USE_MATH_DEFINES
 #include <cassert>
 #include <cctype>
 #include <cerrno>
@@ -79,6 +80,15 @@ namespace abesse
 	T gcd(T a, T b)
 	{
 		return b ? gcd(b, a % b) : a;
+	}
+
+	template<typename T>
+	std::tuple<T, T, T> gcdex(T a, T b) 
+	{
+		static_assert(true == std::is_signed<T>::value, "Input type for gcdex should be signed");
+		if (a == 0)  return std::make_tuple(b, 0, 1);
+		std::tuple<T, T, T> d = gcdex(b % a, a);
+		return std::make_tuple(std::get<0>(d), std::get<2>(d) - (b / a) * std::get<1>(d), std::get<1>(d));
 	}
 
 	template<typename T>
@@ -199,6 +209,18 @@ namespace abesse
 		}
 	};
 
+	template<class T>
+	class ModularMultiplicativeInverse
+	{
+	public:
+		static T compute(T a, T mod)
+		{
+			auto g = gcdex<T>(a, mod);
+			if (std::get<0>(g) != 1) return -1;
+			return (std::get<1>(g) % mod + mod) % mod;
+		}
+	};
+
 	template<size_t MAXN>
 	class Erato
 	{
@@ -246,7 +268,7 @@ namespace abesse
 		int mu_[MAXN];
 		Erato<MAXN> erato;
 	public:
-		consteval Mebius()
+		Mebius()
 		{
 			mu[1] = 1;
 			for (size_t i = 2; i < MAXN; ++i)
@@ -282,6 +304,139 @@ namespace abesse
 		void get_pr_divs(unsigned long long x, std::vector<unsigned long long>& divs)
 		{
 			return erato.get_pr_divs(x, divs);
+		}
+	};
+
+
+	template<class T = double>
+	class FastFourierTransform
+	{
+	public:
+		static void compute(std::vector<std::complex<T>>& polinom, bool const inverse = false)
+		{
+			int const n = static_cast<int>(polinom.size());
+			
+			for (int i = 1, j = 0; i < n; ++i) 
+			{
+				int bit = n >> 1;
+				for (; j & bit; bit >>= 1) j ^= bit;
+				j ^= bit;
+				if (i < j) std::swap(polinom[i], polinom[j]);
+			}
+
+			for (int len = 2; len <= n; len <<= 1) 
+			{
+				double ang = 2 * M_PI / len * (inverse ? -1 : 1);
+				std::complex<T> const wlen(std::cos(ang), std::sin(ang));
+				for (int i = 0; i < n; i += len) 
+				{
+					std::complex<T> w(1);
+					for (int j = 0; j < len / 2; ++j) {
+						std::complex<T> const u = polinom[i + j];
+						std::complex<T> const v = polinom[i + j + len / 2] * w;
+						polinom[i + j] = u + v;
+						polinom[i + j + len / 2] = u - v;
+						w *= wlen;
+					}
+				}
+			}
+			if (true == inverse)
+				for (int i = 0; i < n; ++i) polinom[i] /= n;
+		}
+
+		template<class U>
+		static void multiply(const std::vector<U>& a, const std::vector<U>& b, std::vector<U>& res) 
+		{
+			std::vector<std::complex<T> > fa(a.begin(), a.end());
+			std::vector<std::complex<T> > fb(b.begin(), b.end());
+			size_t lenght = 1;
+			while (lenght < a.size() + b.size()) lenght <<= 1;
+			fa.resize(lenght);
+			fb.resize(lenght);
+
+			FastFourierTransform<T>::compute(fa, false);
+			FastFourierTransform<T>::compute(fb, false);
+			for (size_t i = 0; i < lenght; ++i) fa[i] *= fb[i];
+			FastFourierTransform::compute(fa, true);
+
+			res.resize(lenght);
+			for (size_t i = 0; i < lenght; ++i) res[i] = static_cast<U>(std::round(fa[i].real()));
+		}
+	};
+
+	template<class T = int>
+	class NumberTheoreticTransform
+	{
+	public:
+		struct ModularRoot
+		{
+			size_t mod;
+			size_t root;
+			size_t inverse;
+			size_t power;
+
+			ModularRoot(size_t mod, size_t root, size_t inverse, size_t power)
+				: mod(mod)
+				, root(root)
+				, inverse(inverse)
+				, power(power)
+			{}
+		};
+
+		static void compute(std::vector<T>& polinom, ModularRoot mr, bool const inverse = false)
+		{
+			size_t n = polinom.size();
+
+			for (size_t i = 1, j = 0; i < n; ++i)
+			{
+				size_t bit = n >> 1;
+				for (; j & bit; bit >>= 1) j ^= bit;
+				j ^= bit;
+				if (i < j) std::swap(polinom[i], polinom[j]);
+			}
+
+			int64_t const mod = static_cast<int64_t>(mr.mod);
+			for (size_t len = 2; len <= n; len <<= 1)
+			{
+				int64_t wlen = static_cast<int64_t>(inverse ? mr.inverse : mr.root);
+				for (size_t i = len; i < mr.power; i <<= 1)
+					wlen = wlen * 1 * wlen % mr.mod;
+
+				for (size_t i = 0; i < n; i += len)
+				{
+					int64_t w = 1;
+					for (int j = 0; j < len / 2; ++j) 
+					{
+						int64_t const u = polinom[i + j];
+						int64_t const v = polinom[i + j + len / 2] * 1ll * w % mod;
+						polinom[i + j] = static_cast<T>((u + v < mod) ? u + v : u + v - mod);
+						polinom[i + j + len / 2] = static_cast<T>((u - v >= 0) ? u - v : u - v + mod);
+						w = w * 1ll * wlen % mod;
+					}
+				}
+			}
+			if (true == inverse) 
+			{
+				int64_t const nrev = ModularMultiplicativeInverse<int64_t>::compute(n, mod);
+				for (size_t i = 0; i < n; ++i)
+					polinom[i] = static_cast<T>(polinom[i] * 1 * nrev % mod);
+			}
+		}
+
+		static void multiply(const std::vector<T>& a, const std::vector<T>& b, std::vector<T>& res, ModularRoot mr)
+		{
+			res.assign(a.begin(), a.end());
+			std::vector<T> fb(b.begin(), b.end());
+			
+			size_t lenght = 1;
+			while (lenght < res.size() + b.size()) lenght <<= 1;
+			res.resize(lenght);
+			fb.resize(lenght);
+
+			NumberTheoreticTransform<T>::compute(res, mr, false);
+			NumberTheoreticTransform<T>::compute(fb, mr, false);
+			for (size_t i = 0; i < lenght; ++i) res[i] = (res[i] * fb[i]) % mr.mod;
+			NumberTheoreticTransform<T>::compute(res, mr, true);
 		}
 	};
 
@@ -1664,55 +1819,22 @@ typedef unsigned long long ull;
 typedef long long ll;
 typedef unsigned int ui;
 
-struct qr
-{
-	int l;
-	int r;
-	int i;
-	int ans;
-	qr(int l, int r, int i)
-		: i(i), l(l), r(r), ans(0)
-	{}
-};
-
 
 void solve()
 {
+	vector<int64_t> a = { 2, 3, 4, 1, 9, 78, 3, 4, 33, 54, 22, 66, 5, 65, 65, 32 };
+	vector<int64_t> b = { 4, 1, 4, 3, 4, 4, 56, 87, 45, 77, 26, 26, 22, 1, 103, 0 };
 
-	int n1;
-	cin >> n1;
+	std::vector<int64_t> res1;
+	NumberTheoreticTransform<int64_t>::ModularRoot mr(7340033, 5, 4404020, 1ull << 20);
+	NumberTheoreticTransform<int64_t>::multiply(a, b, res1, mr);
+	forall(res1) cout << e << " ";
 
-	vector<int> arr(n1 + 3);
-	for (int i = 0; i < n1; ++i)
-		cin >> arr[i];
+	cout << endl;
 
-	size_t m;
-	cin >> m;
-	persistence::SegTree<int, ABSum<int> > parr(arr.data(), arr.size(), m);
-
-	string s;
-	int i, j, x;
-
-	int count = 1;
-
-	for (int k = 1; k <= m; ++k)
-	{
-		cin >> s;
-		if (s[0] == 'c')
-		{
-			cin >> i >> j >> x;
-			parr.update(j - 1, x, i - 1, count);
-			++count;
-		}
-		else
-		{
-			cin >> i >> j;
-			cout << parr.query(j - 1, j, i - 1) << endl;
-		}
-	}
-
-
-
+	std::vector<int64_t> res2;
+	FastFourierTransform<double>::multiply<int64_t>(a, b, res2);
+	forall(res2) cout << e << " ";
 }
 
 
