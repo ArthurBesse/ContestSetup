@@ -83,11 +83,11 @@ namespace abesse
 	}
 
 	template<typename T>
-	std::tuple<T, T, T> gcdex(T a, T b) 
+	std::tuple<T, std::make_signed_t<T>, std::make_signed_t<T> > gcdex(T a, T b)
 	{
 		static_assert(true == std::is_signed<T>::value, "Input type for gcdex should be signed");
 		if (a == 0)  return std::make_tuple(b, 0, 1);
-		std::tuple<T, T, T> d = gcdex(b % a, a);
+		std::tuple<T, std::make_signed_t<T>, std::make_signed_t<T> > d = gcdex(b % a, a);
 		return std::make_tuple(std::get<0>(d), std::get<2>(d) - (b / a) * std::get<1>(d), std::get<1>(d));
 	}
 
@@ -209,7 +209,7 @@ namespace abesse
 		}
 	};
 
-	template<class T>
+	template<typename T>
 	class ModularMultiplicativeInverse
 	{
 	public:
@@ -307,12 +307,11 @@ namespace abesse
 		}
 	};
 
-
-	template<class T = double>
+	template<typename T = double>
 	class FastFourierTransform
 	{
 	public:
-		static void compute(std::vector<std::complex<T>>& polinom, bool const inverse = false)
+		static void compute(std::vector<std::complex<T> >& polinom, bool const inverse = false)
 		{
 			size_t const n = polinom.size();
 			
@@ -364,7 +363,7 @@ namespace abesse
 		}
 	};
 
-	template<class T = int>
+	template<typename T = int64_t>
 	class NumberTheoreticTransform
 	{
 	public:
@@ -380,20 +379,31 @@ namespace abesse
 				, root(root)
 				, inverse(inverse)
 				, power(power)
-			{}
+
+			{
+			}
 		};
 
-		static void compute(std::vector<T>& polinom, ModularRoot mr, bool const inverse = false)
+		static void compute(std::vector<T>& polynom, ModularRoot mr, bool const inverse = false, size_t* rev = nullptr)
 		{
-			size_t const n = polinom.size();
+			size_t const n = polynom.size();
 
-			for (size_t i = 1, j = 0; i < n; ++i)
+			if (rev == nullptr)
 			{
-				size_t bit = n >> 1;
-				for (; j & bit; bit >>= 1) j ^= bit;
-				j ^= bit;
-				if (i < j) std::swap(polinom[i], polinom[j]);
+				for (size_t i = 1, j = 0; i < n; ++i)
+				{
+					size_t bit = n >> 1;
+					for (; j & bit; bit >>= 1) j ^= bit;
+					j ^= bit;
+					if (i < j) std::swap(polynom[i], polynom[j]);
+				}
 			}
+			else
+			{
+				for (size_t i = 0; i < n; i++) 
+					if (i < rev[i]) std::swap(polynom[i], polynom[rev[i]]);
+			}
+
 
 			int64_t const mod = static_cast<int64_t>(mr.mod);
 			for (size_t len = 2; len <= n; len <<= 1)
@@ -407,10 +417,10 @@ namespace abesse
 					int64_t w = 1;
 					for (int j = 0; j < len / 2; ++j) 
 					{
-						int64_t const u = polinom[i + j];
-						int64_t const v = polinom[i + j + len / 2] * 1ll * w % mod;
-						polinom[i + j] = static_cast<T>((u + v < mod) ? u + v : u + v - mod);
-						polinom[i + j + len / 2] = static_cast<T>((u - v >= 0) ? u - v : u - v + mod);
+						int64_t const u = polynom[i + j];
+						int64_t const v = polynom[i + j + len / 2] * 1ll * w % mod;
+						polynom[i + j] = static_cast<T>((u + v < mod) ? u + v : u + v - mod);
+						polynom[i + j + len / 2] = static_cast<T>((u - v >= 0) ? u - v : u - v + mod);
 						w = w * 1ll * wlen % mod;
 					}
 				}
@@ -419,7 +429,7 @@ namespace abesse
 			{
 				int64_t const nrev = ModularMultiplicativeInverse<int64_t>::compute(n, mod);
 				for (size_t i = 0; i < n; ++i)
-					polinom[i] = static_cast<T>(polinom[i] * 1 * nrev % mod);
+					polynom[i] = static_cast<T>(polynom[i] * 1 * nrev % mod);
 			}
 		}
 
@@ -439,6 +449,204 @@ namespace abesse
 			NumberTheoreticTransform<T>::compute(res, mr, true);
 		}
 	};
+
+	template<typename T>
+	class Polynomial
+	{
+	public:
+		using ModularRoot = NumberTheoreticTransform<T>::ModularRoot;
+		using DataType = T;
+		std::vector<T> coefficients;
+		size_t degree;
+		
+
+		Polynomial(std::vector<T> cfs)
+			: coefficients(std::move(cfs))
+			, degree(coefficients.size() - 1)
+		{		
+		}
+
+		Polynomial(size_t size)
+			: coefficients(std::move(size))
+			, degree(coefficients.size() - 1)
+		{
+		}
+
+		//Returns inverse modulo x^mod
+		Polynomial<T> inverse(size_t mod, ModularRoot mr)
+		{
+			size_t temp = 1;
+			while (temp < mod) temp <<= 1;
+			mod = temp;
+
+			std::unique_ptr<size_t> rev;
+			rev.reset(new size_t[2 * mod]);
+			rev.get()[0] = 0;
+			for (size_t i = 1, j = 0; i < 2 * mod; ++i)
+			{
+				size_t bit = (2 * mod) >> 1;
+				for (; j & bit; bit >>= 1) j ^= bit;
+				j ^= bit;
+				rev.get()[i] = j;
+			}
+
+			Polynomial<T> p(std::vector<T>(this->coefficients.cbegin(), this->coefficients.cend()));
+			Polynomial<T> q(std::vector<T>{ModularMultiplicativeInverse<T>::compute(*(p.begin()), mr.mod)});
+			p.coefficients.resize(mod);
+			q.coefficients.resize(mod);
+			this->coefficients.resize(mod);
+			Polynomial<T> p0(2 * mod);
+			Polynomial<T> p1(2 * mod);
+
+			for (size_t m = 1; m < mod; m <<= 1)
+			{
+				memset(p0.coefficients.data(), 0, 2 * mod * sizeof(T));
+				memset(p1.coefficients.data(), 0, 2 * mod * sizeof(T));
+				memcpy(p0.coefficients.data(), this->coefficients.data(), m * sizeof(T));
+				memcpy(p1.coefficients.data(), this->coefficients.data() + m, (mod - m) * sizeof(T));
+				Polynomial<T>::multiply(p0, q, mr, 2 * mod, rev.get());
+				Polynomial<T>::multiply(p1, q, mr, 2 * mod, rev.get());
+				for (size_t i = 0; i < 2 * mod; i++) if (i < mod) p1.coefficients[i] = mr.mod - ((p1.coefficients[i] += p0.coefficients[i + m]) % mr.mod); else p1.coefficients[i] = 0;
+				Polynomial<T>::multiply(p1, q, mr, 2 * mod, rev.get());
+				for (size_t i = m; i < mod; i++) q.coefficients[i] = (q.coefficients[i] + p1.coefficients[i - m]) % mr.mod;
+			}
+			return q;
+		}
+
+		std::vector<T>::iterator begin()
+		{
+			return coefficients.begin();
+		}
+
+		std::vector<T>::const_iterator cbegin() const
+		{
+			return coefficients.cbegin();
+		}
+
+		std::vector<T>::iterator end()
+		{
+			return coefficients.end();
+		}
+
+		std::vector<T>::const_iterator cend() const
+		{
+			return coefficients.cend();
+		}
+
+		void operator +=(Polynomial<T> const& polynomial)
+		{
+			size_t const max_size = std::max(this->coefficients.size(), polynomial.coefficients.size());
+			size_t const min_size = std::min(this->coefficients.size(), polynomial.coefficients.size());
+			coefficients.resize(max_size, T{});
+
+			for (size_t i = 0; i < min_size; i++) this->coefficients[i] += polynomial.coefficients[i];
+		}
+
+		void operator -=(Polynomial<T> const& polynomial)
+		{
+			size_t const max_size = std::max(this->coefficients.size(), polynomial.coefficients.size());
+			size_t const min_size = std::min(this->coefficients.size(), polynomial.coefficients.size());
+			coefficients.resize(max_size, T{});
+
+			for (size_t i = 0; i < min_size; i++) this->coefficients[i] -= polynomial.coefficients[i];
+		}
+
+		void operator *=(Polynomial<T> const& polynomial)
+		{
+			if constexpr (std::is_floating_point_v<T>)
+			{
+				std::vector<std::complex<T> > fa(this->coefficients.begin(), this->coefficients.end());
+				std::vector<std::complex<T> > fb(polynomial.coefficients.begin(), polynomial.coefficients.end());
+				size_t lenght = 1;
+				while (lenght < fa.size() + fb.size()) lenght <<= 1;
+				fa.resize(lenght);
+				fb.resize(lenght);
+
+				FastFourierTransform<T>::compute(fa, false);
+				FastFourierTransform<T>::compute(fb, false);
+				for (size_t i = 0; i < lenght; ++i) fa[i] *= fb[i];
+				FastFourierTransform<T>::compute(fa, true);
+
+				this->coefficients.resize(lenght);
+				for (size_t i = 0; i < lenght; ++i) this->coefficients[i] = fa[i].real();
+			}
+			else
+			{
+				std::vector<std::complex<double> > fa(this->coefficients.begin(), this->coefficients.end());
+				std::vector<std::complex<double> > fb(polynomial.coefficients.begin(), polynomial.coefficients.end());
+				size_t lenght = 1;
+				while (lenght < fa.size() + fb.size()) lenght <<= 1;
+				fa.resize(lenght);
+				fb.resize(lenght);
+
+				FastFourierTransform<double>::compute(fa, false);
+				FastFourierTransform<double>::compute(fb, false);
+				for (size_t i = 0; i < lenght; ++i) fa[i] *= fb[i];
+				FastFourierTransform<double>::compute(fa, true);
+
+				this->coefficients.resize(lenght);
+				for (size_t i = 0; i < lenght; ++i) this->coefficients[i] = static_cast<T>(std::round(fa[i].real()));
+			}
+		}
+
+		void operator *=(std::pair<Polynomial<T>, ModularRoot> const& polynomial)
+		{
+			size_t lenght = 1;
+			while (lenght < this->coefficients.size() + polynomial.first.coefficients.size()) lenght <<= 1;
+			
+			std::vector<T> fb(polynomial.first.coefficients.begin(), polynomial.first.coefficients.end());
+			this->coefficients.resize(lenght);	
+			fb.resize(lenght);
+
+			NumberTheoreticTransform<T>::compute(this->coefficients, polynomial.second, false);
+			NumberTheoreticTransform<T>::compute(fb, polynomial.second, false);
+			for (size_t i = 0; i < lenght; ++i) this->coefficients[i] = (this->coefficients[i] * fb[i]) % polynomial.second.mod;
+			NumberTheoreticTransform<T>::compute(this->coefficients, polynomial.second, true);
+		}
+
+		Polynomial<T> operator +(Polynomial<T> const& polynomial) const
+		{
+			Polynomial<T> result = *this;
+			result += polynomial;
+			return std::move(result);
+		}
+
+		Polynomial<T> operator -(Polynomial<T> const& polynomial) const
+		{
+			Polynomial<T> result = *this;
+			result -= polynomial;
+			return std::move(result);
+		}
+
+		Polynomial<T> operator *(Polynomial<T> const& polynomial) const
+		{
+			Polynomial<T> res = *this;
+			res *= polynomial;
+			return res;
+		}
+
+		Polynomial<T> operator *(std::pair<Polynomial<T>, ModularRoot> const& polynomial) const
+		{
+			Polynomial<T> res = *this;
+			res *= polynomial;
+			return res;
+		}
+
+
+	private:
+		static void multiply(Polynomial<T>& a, Polynomial<T> const& b, ModularRoot mr, size_t mod, size_t* rev = nullptr)
+		{
+			std::vector<T> fb(mod);
+			std::memcpy(fb.data(), b.coefficients.data(), b.coefficients.size() * sizeof(T));
+			NumberTheoreticTransform<T>::compute(a.coefficients, mr, false, rev);
+			NumberTheoreticTransform<T>::compute(fb, mr, false, rev);
+			for (size_t i = 0; i < mod; ++i) a.coefficients[i] = (a.coefficients[i] * fb[i]) % mr.mod;
+			NumberTheoreticTransform<T>::compute(a.coefficients, mr, true, rev);
+
+		}
+
+	};
+
 
 	template<typename T>
 	class Diffarray
@@ -503,7 +711,7 @@ namespace abesse
 		}
 	};
 
-	template<class T, class Operation>
+	template<typename T, typename Operation>
 	class SegTree
 	{
 		std::vector<T> tree;
@@ -554,7 +762,7 @@ namespace abesse
 	};
 
 	enum FenwickQueryType{BEGIN_QUERY, END_QUERY};
-	template<class T, class Operation, FenwickQueryType QueryType = BEGIN_QUERY>
+	template<typename T, typename Operation, FenwickQueryType QueryType = BEGIN_QUERY>
 	class FenwickTree 
 	{
 		std::vector<T> tree;  
@@ -598,7 +806,7 @@ namespace abesse
 		}
 	};
 
-	template<typename T, class Operation>
+	template<typename T, typename Operation>
 	class SparseTable
 	{
 		std::vector<std::vector<T> > st;
@@ -628,7 +836,7 @@ namespace abesse
 
 	};
 
-	template <typename T, class Operation>
+	template <typename T, typename Operation>
 	class DisjointSparseTable
 	{
 	public:
@@ -1820,62 +2028,28 @@ typedef long long ll;
 typedef unsigned int ui;
 
 
-void solv1e()
-{
-	vector<int64_t> a = { 2, 3838, 4383, 4801, 93980, 78, 34084, 27574, 3933, 54940, 240802, 66408, 5, 65, 65, 32 };
-	vector<int64_t> b = { 73684, 5001, 44799, 177383, 17174, 712684, 572686, 72787, 6527545, 77, 26, 26, 22, 1, 103, 0 };
-
-	std::vector<int64_t> res1;
-	NumberTheoreticTransform<int64_t>::ModularRoot mr(7340033, 5, 4404020, 1ull << 20);
-	NumberTheoreticTransform<int64_t>::multiply(a, b, res1, mr);
-	forall(res1) cout << e << " ";
-
-	cout << endl;
-
-	std::vector<int64_t> res2;
-	FastFourierTransform<double>::multiply<int64_t>(a, b, res2);
-	forall(res2) cout << e % mr.mod << " ";
-}
-vector<int64_t> trunc(vector<int64_t>const & p, size_t k)
-{
-	vector<int64_t> res;
-	for (size_t i = 0; i < k; i++)
-	{
-		size_t temp = 0;
-		for (size_t j = i; j < p.size(); j += k)
-			temp += p[j];
-		res.push_back(temp % 100000);
-	}
-	return res;
-}
-
-vector<int64_t> power(size_t n, vector<int64_t> const& p, int k)
-{
-	if (n == 1) return p;
-	if (n == 0) return { 1 };
-	vector<int64_t> res;
-	if (n % 2)
-		FastFourierTransform<long double>::multiply<int64_t>(trunc(p, k), trunc(power(n - 1, p, k), k), res);
-	else
-	{
-		auto temp = trunc(power(n / 2, p, k), k);
-		FastFourierTransform<long double>::multiply<int64_t>(temp, temp, res);
-	}
-	return trunc(res, k);
-}
 
 void solve()
 {
-	size_t n, k;
-	cin >> n >> k;
+	int n, m;
+	cin >> m >> n;
 
-	
-	auto v = power(n, { 1, 1 }, k);
-	string s = to_string(v[0]);
+	vector<int64_t> v(n + 1);
+	read(v);
 
-	cout << v[0] << endl;
+	if (v[0] == 0)
+	{
+		cout << "The ears of a dead donkey\n";
+		return;
+	}
+
+	Polynomial<int64_t> p(std::move(v));
+	NumberTheoreticTransform<int64_t>::ModularRoot mr(7340033, 5, ModularMultiplicativeInverse<int64_t>::compute(5, 7340033), 1 << 20);
+	auto const j = p.inverse(m, mr);
+	for (size_t i = 0; i < m; i++)cout << j.coefficients[i] << " ";
 
 }
+
 
 
 int main(int argc, char const** argv)
