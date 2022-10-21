@@ -1,5 +1,6 @@
 #define _CRT_SECURE_NO_WARNINGS
 #define _USE_MATH_DEFINES
+
 #include <cassert>
 #include <cctype>
 #include <cerrno>
@@ -109,10 +110,10 @@ namespace abesse
 		else if constexpr (std::is_same<T, unsigned short>::value)
 			return bit_count - 1 - __lzcnt16(x);
 		else
-			static_assert(  true == std::is_same<T, unsigned __int64>::value
-						 || true == std::is_same<T, unsigned int>::value
-						 || true == std::is_same<T, unsigned short>::value
-						, "Invalid type has been specified for fast_log2()");
+			static_assert(true == std::is_same<T, unsigned __int64>::value
+				|| true == std::is_same<T, unsigned int>::value
+				|| true == std::is_same<T, unsigned short>::value
+				, "Invalid type has been specified for fast_log2()");
 #else
 		if constexpr (std::is_same<T, unsigned long long>::value)
 			return bit_count - 1 - __builtin_clzll(x);
@@ -137,7 +138,7 @@ namespace abesse
 		}
 		return a != 1;
 	}
-	
+
 	//Next larger integer with same binary weight
 	unsigned int snoob(unsigned int x)
 	{
@@ -248,7 +249,7 @@ namespace abesse
 			return erato[x];
 		}
 
-		void get_pr_divs(unsigned long long x, std::vector<unsigned long long>& divs) 
+		void get_pr_divs(unsigned long long x, std::vector<unsigned long long>& divs)
 		{
 			for (size_t i = 2; i * i <= x; i++)
 			{
@@ -314,7 +315,7 @@ namespace abesse
 		static void compute(std::vector<std::complex<T> >& polinom, bool const inverse = false)
 		{
 			size_t const n = polinom.size();
-			
+
 			for (size_t i = 1, j = 0; i < n; ++i)
 			{
 				size_t bit = n >> 1;
@@ -323,11 +324,11 @@ namespace abesse
 				if (i < j) std::swap(polinom[i], polinom[j]);
 			}
 
-			for (size_t len = 2; len <= n; len <<= 1) 
+			for (size_t len = 2; len <= n; len <<= 1)
 			{
-				T ang = 2 * M_PI / static_cast<std::make_unsigned<decltype(len)>::type >(len) * (inverse ? -1 : 1);
+				T ang = 2 * M_PI / static_cast<std::make_unsigned<decltype(len)>::type>(len) * (inverse ? -1 : 1);
 				std::complex<T> const wlen(std::cos(ang), std::sin(ang));
-				for (int i = 0; i < n; i += len) 
+				for (int i = 0; i < n; i += len)
 				{
 					std::complex<T> w(1);
 					for (int j = 0; j < len / 2; ++j) {
@@ -344,7 +345,7 @@ namespace abesse
 		}
 
 		template<class U>
-		static void multiply(const std::vector<U>& a, const std::vector<U>& b, std::vector<U>& res) 
+		static void multiply(const std::vector<U>& a, const std::vector<U>& b, std::vector<U>& res)
 		{
 			std::vector<std::complex<T> > fa(a.begin(), a.end());
 			std::vector<std::complex<T> > fb(b.begin(), b.end());
@@ -400,7 +401,7 @@ namespace abesse
 			}
 			else
 			{
-				for (size_t i = 0; i < n; i++) 
+				for (size_t i = 0; i < n; i++)
 					if (i < rev[i]) std::swap(polynom[i], polynom[rev[i]]);
 			}
 
@@ -415,7 +416,7 @@ namespace abesse
 				for (size_t i = 0; i < n; i += len)
 				{
 					int64_t w = 1;
-					for (int j = 0; j < len / 2; ++j) 
+					for (int j = 0; j < len / 2; ++j)
 					{
 						int64_t const u = polynom[i + j];
 						int64_t const v = polynom[i + j + len / 2] * 1ll * w % mod;
@@ -425,7 +426,7 @@ namespace abesse
 					}
 				}
 			}
-			if (true == inverse) 
+			if (true == inverse)
 			{
 				int64_t const nrev = ModularMultiplicativeInverse<int64_t>::compute(n, mod);
 				for (size_t i = 0; i < n; ++i)
@@ -437,7 +438,7 @@ namespace abesse
 		{
 			res.assign(a.begin(), a.end());
 			std::vector<T> fb(b.begin(), b.end());
-			
+
 			size_t lenght = 1;
 			while (lenght < res.size() + b.size()) lenght <<= 1;
 			res.resize(lenght);
@@ -458,18 +459,54 @@ namespace abesse
 		using DataType = T;
 		std::vector<T> coefficients;
 		size_t degree;
-		
+
 
 		Polynomial(std::vector<T> cfs)
 			: coefficients(std::move(cfs))
 			, degree(coefficients.size() - 1)
-		{		
+		{
 		}
 
 		Polynomial(size_t size)
 			: coefficients(std::move(size))
 			, degree(coefficients.size() - 1)
 		{
+		}
+
+		//Returns inverse modulo x^mod
+		Polynomial<double> inverse(size_t mod)
+		{
+			size_t temp = 1;
+			while (temp < mod) temp <<= 1;
+			mod = temp;
+
+			Polynomial<double> p(std::vector<double>(this->coefficients.cbegin(), this->coefficients.cend()));
+			Polynomial<double> q(std::vector<double>{(double)ModularMultiplicativeInverse<int64_t>::compute((int64_t)(*(p.begin())), 7340033)});
+			p.coefficients.resize(mod);
+			q.coefficients.resize(mod);
+
+			for (size_t m = 1; m < mod; m <<= 1)
+			{
+				std::cout << m << std::endl;
+				Polynomial<double> const p0(std::vector<double>(p.coefficients.begin(), std::next(p.coefficients.begin(), m)));
+				Polynomial<double> const p1(std::vector<double>(std::next(p.coefficients.begin(), m), p.coefficients.end()));
+				Polynomial<double> const q0(std::vector<double>(q.coefficients.begin(), std::next(q.coefficients.begin(), m)));
+				Polynomial<double> const q1(std::vector<double>(std::next(q.coefficients.begin(), m), q.coefficients.end()));
+				Polynomial<double> r = p0 * q;
+				Polynomial<double> h = p1 * q;
+
+				r.coefficients.erase(r.begin(), std::next(r.begin(), m));
+				h += r;
+				for (auto& e : h) e = 7340033 - (((int64_t)round(e)) % 7340033);
+
+				Polynomial<double> t = q * h;
+				t.coefficients.insert(t.begin(), m, 0);
+				q += t;
+				//for (auto& e : q) e = (((int64_t)round(e)) % 7340033);
+				q.coefficients.resize(mod);
+			}
+			for (auto& e : q) e = (((int64_t)round(e)) % 7340033);
+			return q;
 		}
 
 		//Returns inverse modulo x^mod
@@ -491,10 +528,9 @@ namespace abesse
 			}
 
 			Polynomial<T> p(std::vector<T>(this->coefficients.cbegin(), this->coefficients.cend()));
-			Polynomial<T> q(std::vector<T>{ModularMultiplicativeInverse<T>::compute(*(p.begin()), mr.mod)});
+			Polynomial<T> q(std::vector<T>{ModularMultiplicativeInverse<T>::compute(*(p.cbegin()), mr.mod)});
 			p.coefficients.resize(mod);
 			q.coefficients.resize(mod);
-			this->coefficients.resize(mod);
 			Polynomial<T> p0(2 * mod);
 			Polynomial<T> p1(2 * mod);
 
@@ -502,8 +538,8 @@ namespace abesse
 			{
 				memset(p0.coefficients.data(), 0, 2 * mod * sizeof(T));
 				memset(p1.coefficients.data(), 0, 2 * mod * sizeof(T));
-				memcpy(p0.coefficients.data(), this->coefficients.data(), m * sizeof(T));
-				memcpy(p1.coefficients.data(), this->coefficients.data() + m, (mod - m) * sizeof(T));
+				memcpy(p0.coefficients.data(), p.coefficients.data(), m * sizeof(T));
+				memcpy(p1.coefficients.data(), p.coefficients.data() + m, (mod - m) * sizeof(T));
 				Polynomial<T>::multiply(p0, q, mr, 2 * mod, rev.get());
 				Polynomial<T>::multiply(p1, q, mr, 2 * mod, rev.get());
 				for (size_t i = 0; i < 2 * mod; i++) if (i < mod) p1.coefficients[i] = mr.mod - ((p1.coefficients[i] += p0.coefficients[i + m]) % mr.mod); else p1.coefficients[i] = 0;
@@ -593,9 +629,9 @@ namespace abesse
 		{
 			size_t lenght = 1;
 			while (lenght < this->coefficients.size() + polynomial.first.coefficients.size()) lenght <<= 1;
-			
+
 			std::vector<T> fb(polynomial.first.coefficients.begin(), polynomial.first.coefficients.end());
-			this->coefficients.resize(lenght);	
+			this->coefficients.resize(lenght);
 			fb.resize(lenght);
 
 			NumberTheoreticTransform<T>::compute(this->coefficients, polynomial.second, false);
@@ -642,11 +678,8 @@ namespace abesse
 			NumberTheoreticTransform<T>::compute(fb, mr, false, rev);
 			for (size_t i = 0; i < mod; ++i) a.coefficients[i] = (a.coefficients[i] * fb[i]) % mr.mod;
 			NumberTheoreticTransform<T>::compute(a.coefficients, mr, true, rev);
-
 		}
-
 	};
-
 
 	template<typename T>
 	class Diffarray
@@ -761,11 +794,11 @@ namespace abesse
 
 	};
 
-	enum FenwickQueryType{BEGIN_QUERY, END_QUERY};
+	enum FenwickQueryType { BEGIN_QUERY, END_QUERY };
 	template<typename T, typename Operation, FenwickQueryType QueryType = BEGIN_QUERY>
-	class FenwickTree 
+	class FenwickTree
 	{
-		std::vector<T> tree;  
+		std::vector<T> tree;
 		int n;
 	public:
 		FenwickTree(size_t count)
@@ -774,7 +807,7 @@ namespace abesse
 		{
 		}
 
-		FenwickTree(std::vector<T> const & a) : FenwickTree(a.size())
+		FenwickTree(std::vector<T> const& a) : FenwickTree(a.size())
 		{
 			for (size_t i = 0; i < a.size(); i++)
 				update(static_cast<int>(i), a[i]);
@@ -782,7 +815,7 @@ namespace abesse
 
 		//If QueryType == BEGIN_QUERY compute for range [0, r)
 		//Else compute for range [r, end)
-		T query(int r) 
+		T query(int r)
 		{
 			T ret = Operation::DefVal();
 
@@ -795,9 +828,9 @@ namespace abesse
 				for (; r < n; r = r | (r + 1)) ret = Operation::compute(tree[r], ret);
 			return ret;
 		}
-	
+
 		//In case of min/max operation, new value should be smaller/bigger than current
-		void update(int idx, T const& val) 
+		void update(int idx, T const& val)
 		{
 			if constexpr (FenwickQueryType::BEGIN_QUERY == QueryType)
 				for (; idx < n; idx = idx | (idx + 1)) tree[idx] = Operation::compute(tree[idx], val);
@@ -811,7 +844,7 @@ namespace abesse
 	{
 		std::vector<std::vector<T> > st;
 	public:
-		SparseTable(std::vector<T> const& v) 
+		SparseTable(std::vector<T> const& v)
 			: st(ceil(log2(v.size())) + 1, std::vector<T>(v.size(), Operation::DefVal()))
 		{
 			int h = floor(log2(v.size()));
@@ -840,7 +873,7 @@ namespace abesse
 	class DisjointSparseTable
 	{
 	public:
-		explicit DisjointSparseTable(std::vector<T> arr) 
+		explicit DisjointSparseTable(std::vector<T> arr)
 		{
 			// Find the highest cnt such that pow2 = 2^cnt >= x
 			size_t const cnt = fast_log2(arr.size()) + 1;
@@ -1622,7 +1655,7 @@ namespace abesse
 		{
 			int n = static_cast<int>(s.length());
 			res.assign(n, 0);
-			for (int i = 1, l = 0, r = 0; i < n; ++i) 
+			for (int i = 1, l = 0, r = 0; i < n; ++i)
 			{
 				if (i <= r)
 					res[i] = std::min(r - i + 1, res[i - l]);
@@ -1710,7 +1743,7 @@ namespace abesse
 			}
 			return result;
 		}
-		
+
 		std::vector<int> const& get_pairU() const
 		{
 			return pairU;
@@ -1823,7 +1856,7 @@ namespace abesse
 		{
 		}
 
-		std::vector<int> const & run()
+		std::vector<int> const& run()
 		{
 			for (size_t i = 1; i <= bg.m; ++i)
 			{
@@ -1854,7 +1887,7 @@ namespace abesse
 		template<typename T>
 		class Array final
 		{
-			struct Node 
+			struct Node
 			{
 				T val;
 				Node* l;
@@ -1867,7 +1900,7 @@ namespace abesse
 			size_t size;
 			std::vector<Node*> roots;
 
-			Node* build(size_t l, size_t r) 
+			Node* build(size_t l, size_t r)
 			{
 				if (l + 1 == r) return new Node(data[l]);
 				size_t mid = (l + r) / 2;
@@ -1919,7 +1952,7 @@ namespace abesse
 				return query_impl(roots[revision], index, 0, size);
 			}
 
-			void update(size_t index, size_t value, size_t revision, size_t new_revision) 
+			void update(size_t index, size_t value, size_t revision, size_t new_revision)
 			{
 				// Updates the array item at a given index and time
 				roots[new_revision] = update_impl(roots[revision], value, index, 0, size);
@@ -1936,8 +1969,8 @@ namespace abesse
 				size_t e;
 				Node* l;
 				Node* r;
-				
-				Node(T x, size_t start, size_t end, Node* left_child = nullptr, Node* right_child = nullptr) 
+
+				Node(T x, size_t start, size_t end, Node* left_child = nullptr, Node* right_child = nullptr)
 					: val(x)
 					, s(start)
 					, e(end)
@@ -1949,7 +1982,7 @@ namespace abesse
 			T* data;
 			size_t size;
 			std::vector<Node*> roots;
-			
+
 			Node* build(size_t l, size_t r)
 			{
 				if (l + 1 == r) return new Node(data[l], l, r);
@@ -1964,7 +1997,7 @@ namespace abesse
 			{
 				if (node->s + 1 == node->e) return new Node(val, node->s, node->e);
 				size_t mid = (node->s + node->e) / 2;
-				if (pos < mid) { Node* lc = update_impl(node->l, val, pos); return new Node(Operation::compute(lc->val, node->r->val), node->s, node->e, lc, node->r); } 
+				if (pos < mid) { Node* lc = update_impl(node->l, val, pos); return new Node(Operation::compute(lc->val, node->r->val), node->s, node->e, lc, node->r); }
 				else { Node* rc = update_impl(node->r, val, pos); return new Node(Operation::compute(node->l->val, rc->val), node->s, node->e, node->l, rc); }
 			}
 
