@@ -290,7 +290,7 @@ namespace abesse
 		template <typename U = T>
 		typename std::enable_if<std::is_same<typename Modular<U>::Type, int>::value, Modular>::type& operator*=(const Modular& rhs)
 		{
-#ifdef _WIN32
+#ifndef _WIN32
 			uint64_t x = static_cast<int64_t>(value) * static_cast<int64_t>(rhs.value);
 			uint32_t xh = static_cast<uint32_t>(x >> 32), xl = static_cast<uint32_t>(x), d, m;
 			asm(
@@ -1922,7 +1922,7 @@ namespace abesse
 		{
 			return pairU;
 		}
-		std::vector<int> const& () const
+		std::vector<int> const& get_pairV() const
 		{
 			return pairV;
 		}
@@ -2251,7 +2251,7 @@ void solve()
 		return;
 	}
 	
-	Polynomial<mint, TransformationType::FFT> p(pv, { 625, 3558448, 1 << 18 });
+	Polynomial<mint, TransformationType::NTT> p(pv, { 625, 3558448, 1 << 18 });
 	auto iv = p.inverse(m);
 
 	for (size_t i = 0; i < m; i++) cout << iv.get_coefficients()[i] << " ";
