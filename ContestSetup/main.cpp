@@ -737,7 +737,9 @@ namespace abesse
 		static void multiply(Polynomial& a, Polynomial const& b, size_t xmod, size_t const* rev = nullptr)
 		{
 			long double ang = 2 * M_PI / xmod;
-			RootOfUnity<std::complex<long double> > const ru(ang, -ang, xmod);
+			std::complex<long double> const root(std::cos(ang), std::sin(ang));
+			std::complex<long double> const iroot(std::cos(-ang), std::sin(-ang));
+			RootOfUnity<std::complex<long double> > const ru(root, iroot, xmod);
 			std::vector<std::complex<long double> > fa(a.begin(), a.end());
 			std::vector<std::complex<long double> > fb(b.cbegin(), b.cend());
 			fa.resize(xmod);
@@ -746,6 +748,7 @@ namespace abesse
 			FastFourierTransform<std::complex<long double> >::compute(fb, ru,  false, rev);
 			for (size_t i = 0; i < xmod; ++i) fa[i] *= fb[i];
 			FastFourierTransform<std::complex<long double> >::compute(fa, ru, true, rev);
+			a.coefficients.resize(xmod);
 			for (size_t i = 0; i < xmod; ++i) a.coefficients[i] = static_cast<T>(std::round(fa[i].real())); 
 		}
 	};
@@ -2241,21 +2244,21 @@ using mint = Modular<std::integral_constant<int, md>>;
 void solve()
 {
 	int n, m;
-	cin >> m >> n;
-	vector<mint> pv(n + 1);
+	cin >>n;
+	vector<int> pv(n + 1);
 	read(pv);
-
-	if (pv[0].is_zero())
-	{
-		cout << "The ears of a dead donkey\n";
-		return;
-	}
+	cin >>m;
+	vector<int> qv(m+ 1);
+	read(qv);
+	reverse(all(pv));
+	reverse(all(qv));
+	Polynomial<int, TransformationType::FFT> p(pv);
+	Polynomial<int, TransformationType::FFT> q(qv);
 	
-	Polynomial<mint, TransformationType::NTT> p(pv, { 625, 3558448, 1 << 18 });
-	auto iv = p.inverse(m);
-
-	for (size_t i = 0; i < m; i++) cout << iv.get_coefficients()[i] << " ";
-
+	p *= q;
+	cout << n + m << " ";
+	for(int i = n + m; i >=0; --i) cout << p.get_coefficients()[i] << " ";
+	
 }
 
 
