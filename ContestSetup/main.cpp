@@ -83,6 +83,9 @@ namespace abesse
 	template<typename T, template<typename> class U>
 	struct is_instantiation_of<U<T>, U> : std::true_type { };
 
+	template<typename T, T v1 = 0>
+	struct is_zero : std::false_type { };
+
 	template<typename T>
 	T gcd(T a, T b)
 	{
@@ -258,7 +261,7 @@ namespace abesse
 		}
 
 		template <typename U>
-		static Type normalize(const U& x) 
+		static Type normalize(const U& x)
 		{
 			Type v;
 			if (-mod() <= x && x < mod()) v = static_cast<Type>(x);
@@ -266,6 +269,7 @@ namespace abesse
 			if (v < 0) v += mod();
 			return v;
 		}
+
 
 		const Type& operator()() const { return value; }
 		template <typename U>
@@ -281,6 +285,7 @@ namespace abesse
 		Modular operator++(int) { Modular result(*this); *this += 1; return result; }
 		Modular operator--(int) { Modular result(*this); *this -= 1; return result; }
 		Modular operator-() const { return Modular(-value); }
+		bool is_zero() { return value == 0; }
 
 		template <typename U = T>
 		typename std::enable_if<std::is_same<typename Modular<U>::Type, int>::value, Modular>::type& operator*=(const Modular& rhs)
@@ -349,6 +354,8 @@ namespace abesse
 	template <typename T, typename U>	Modular<T> operator/(const Modular<T>& lhs, U rhs) { return Modular<T>(lhs) /= rhs; }
 	template <typename T, typename U>	Modular<T> operator/(U lhs, const Modular<T>& rhs) { return Modular<T>(lhs) /= rhs; }
 
+	
+
 	template<typename T, typename U>
 	Modular<T> power(const Modular<T>& a, const U& b)
 	{
@@ -361,12 +368,6 @@ namespace abesse
 			p >>= 1;
 		}
 		return res;
-	}
-
-	template <typename T>
-	bool is_zero(const Modular<T>& number) 
-	{
-		return number() == 0;
 	}
 
 	template <typename T>
@@ -557,7 +558,8 @@ namespace abesse
 		}
 	};
 
-	template<typename T>
+	enum class TransformationType { FFT, NTT };
+	template<typename T, TransformationType TRANSFORMATION_TYPE>
 	class Polynomial
 	{		
 		//std::vector<T> coefficients;
@@ -698,6 +700,7 @@ namespace abesse
 			return res;
 		}
 
+		template <typename U = T, std::enable_if_t<is_instantiation_of<U, Modular>::value, bool> = true >
 		Polynomial div(Polynomial polynomial, size_t amod)
 		{
 			std::reverse(this->coefficients.begin(), this->coefficients.end());
@@ -712,9 +715,8 @@ namespace abesse
 		}
 
 	private:
-
-		template <typename U = T, std::enable_if_t<is_instantiation_of<U, Modular>::value, bool> = true >
-		static void multiply(Polynomial<U>& a, Polynomial<U> const& b, size_t xmod, size_t const* rev = nullptr)
+		template <TransformationType U = TRANSFORMATION_TYPE, std::enable_if_t<U == TransformationType::NTT, bool> = true>
+		static void multiply(Polynomial& a, Polynomial const& b, size_t xmod, size_t const* rev = nullptr)
 		{
 			assert(a.root_of_unity.power >= xmod);
 			std::vector<T> fb(b.cbegin(), b.cend());
@@ -726,21 +728,20 @@ namespace abesse
 			FastFourierTransform<T>::compute(a.coefficients, a.root_of_unity, true, rev);
 		}
 
-		template <typename U = T, std::enable_if_t<std::is_floating_point<U>::value || std::is_integral<U>::value, bool> = true >
-		static void multiply(Polynomial<U>& a, Polynomial<U> const& b, size_t xmod, size_t const* rev = nullptr)
+		template <TransformationType U = TRANSFORMATION_TYPE, std::enable_if_t<U == TransformationType::FFT, bool> = true>
+		static void multiply(Polynomial& a, Polynomial const& b, size_t xmod, size_t const* rev = nullptr)
 		{
-			T ang = 2 * M_PI / xmod;
-			RootOfUnity<std::complex<T> > const ru(ang, -ang, xmod);
-			std::vector<std::complex<T> > fa(a.begin(), a.end());
-			std::vector<std::complex<T> > fb(b.cbegin(), b.cend());
+			long double ang = 2 * M_PI / xmod;
+			RootOfUnity<std::complex<long double> > const ru(ang, -ang, xmod);
+			std::vector<std::complex<long double> > fa(a.begin(), a.end());
+			std::vector<std::complex<long double> > fb(b.cbegin(), b.cend());
 			fa.resize(xmod);
 			fb.resize(xmod);
-			FastFourierTransform<std::complex<T> >::compute(fa, ru, false, rev);
-			FastFourierTransform<std::complex<T> >::compute(fb, ru,  false, rev);
+			FastFourierTransform<std::complex<long double> >::compute(fa, ru, false, rev);
+			FastFourierTransform<std::complex<long double> >::compute(fb, ru,  false, rev);
 			for (size_t i = 0; i < xmod; ++i) fa[i] *= fb[i];
-			FastFourierTransform<std::complex<T> >::compute(fa, ru, true, rev);
-
-			for (size_t i = 0; i < xmod; ++i) a.coefficients[i] = static_cast<T>(std::round(fa[i].real()));	
+			FastFourierTransform<std::complex<long double> >::compute(fa, ru, true, rev);
+			for (size_t i = 0; i < xmod; ++i) a.coefficients[i] = static_cast<T>(std::round(fa[i].real())); 
 		}
 	};
 
@@ -2239,13 +2240,13 @@ void solve()
 	vector<mint> pv(n + 1);
 	read(pv);
 
-	if (is_zero(pv[0]))
+	if (pv[0].is_zero())
 	{
 		cout << "The ears of a dead donkey\n";
 		return;
 	}
 	
-	Polynomial<mint> p(pv, { 625, 3558448, 1 << 18 });
+	Polynomial<mint, TransformationType::NTT> p(pv, { 625, 3558448, 1 << 18 });
 	auto iv = p.inverse(m);
 
 	for (size_t i = 0; i < m; i++) cout << iv.coefficients[i] << " ";
