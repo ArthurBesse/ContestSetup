@@ -257,7 +257,7 @@ namespace abesse
 		template <typename U>
 		Modular(const U& x) 
 		{
-			value = normalize(x);
+			value = normalize(static_cast<Type>(x));
 		}
 
 		template <typename U>
@@ -290,7 +290,7 @@ namespace abesse
 		template <typename U = T>
 		typename std::enable_if<std::is_same<typename Modular<U>::Type, int>::value, Modular>::type& operator*=(const Modular& rhs)
 		{
-#ifndef _WIN32
+#ifdef _WIN32
 			uint64_t x = static_cast<int64_t>(value) * static_cast<int64_t>(rhs.value);
 			uint32_t xh = static_cast<uint32_t>(x >> 32), xl = static_cast<uint32_t>(x), d, m;
 			asm(
@@ -442,7 +442,7 @@ namespace abesse
 	public:
 		Mebius()
 		{
-			mu[1] = 1;
+			mu_[1] = 1;
 			for (size_t i = 2; i < MAXN; ++i)
 			{
 				size_t p = erato[i];
@@ -562,10 +562,10 @@ namespace abesse
 	template<typename T, TransformationType TRANSFORMATION_TYPE>
 	class Polynomial
 	{		
-		//std::vector<T> coefficients;
+		std::vector<T> coefficients;
 		RootOfUnity<T> root_of_unity;
 	public:
-		std::vector<T> coefficients;
+		
 		Polynomial(std::vector<T> cfs, RootOfUnity<T> ru)
 			: coefficients(std::move(cfs))
 			, root_of_unity(ru)
@@ -631,29 +631,34 @@ namespace abesse
 			return q;
 		}
 
-		std::vector<T>::iterator begin()
+		typename std::vector<T>::iterator begin()
 		{
 			return coefficients.begin();
 		}
 
-		std::vector<T>::const_iterator cbegin() const
+		typename std::vector<T>::const_iterator cbegin() const
 		{
 			return coefficients.cbegin();
 		}
 
-		std::vector<T>::iterator end()
+		typename std::vector<T>::iterator end()
 		{
 			return coefficients.end();
 		}
 
-		std::vector<T>::const_iterator cend() const
+		typename std::vector<T>::const_iterator cend() const
 		{
 			return coefficients.cend();
 		}
 
-		std::vector<T>::size_type size() const
+		typename std::vector<T>::size_type size() const
 		{
 			return this->coefficients.size();
+		}
+		
+		std::vector<T> const& get_coefficients()
+		{
+		    return this->coefficients;
 		}
 
 		void operator +=(Polynomial const& polynomial)
@@ -1541,8 +1546,8 @@ namespace abesse
 			node* current_node = root;
 			for (size_t i = 0; i < new_word.size(); i++)
 			{
-				if (current_node->childs[new_word[i]] == nullptr) current_node->childs[new_word[i]] = new node();
-				current_node = current_node->childs[new_word[i]];
+				if (current_node->childs[static_cast<unsigned char>(new_word[i])] == nullptr) current_node->childs[static_cast<unsigned char>(new_word[i])] = new node();
+				current_node = current_node->childs[static_cast<unsigned char>(new_word[i])];
 			}
 			if (current_node->word == true) return false;
 			return current_node->word = true;
@@ -1553,8 +1558,8 @@ namespace abesse
 			node* current_node = root;
 			for (size_t i = 0; i < new_word.size(); i++)
 			{
-				if (current_node->childs[new_word[i]] == nullptr) return false;
-				current_node = current_node->childs[new_word[i]];
+				if (current_node->childs[static_cast<unsigned char>(new_word[i])] == nullptr) return false;
+				current_node = current_node->childs[static_cast<unsigned char>(new_word[i])];
 			}
 			if (current_node->word == true) return true;
 			return false;
@@ -1917,7 +1922,7 @@ namespace abesse
 		{
 			return pairU;
 		}
-		std::vector<int> const& get_pairV() const
+		std::vector<int> const& () const
 		{
 			return pairV;
 		}
@@ -1939,7 +1944,7 @@ namespace abesse
 					Q.push(u);
 				}
 
-				// Else set distance as infinite so that this vertex
+				// Else set distance as infinite  that this vertex
 				// is considered next time
 				else dist[u] = inf;
 			}
@@ -2246,10 +2251,10 @@ void solve()
 		return;
 	}
 	
-	Polynomial<mint, TransformationType::NTT> p(pv, { 625, 3558448, 1 << 18 });
+	Polynomial<mint, TransformationType::FFT> p(pv, { 625, 3558448, 1 << 18 });
 	auto iv = p.inverse(m);
 
-	for (size_t i = 0; i < m; i++) cout << iv.coefficients[i] << " ";
+	for (size_t i = 0; i < m; i++) cout << iv.get_coefficients()[i] << " ";
 
 }
 
@@ -2275,4 +2280,3 @@ int main(int argc, char const** argv)
 
 	return 0;
 }
-
