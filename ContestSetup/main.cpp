@@ -352,8 +352,6 @@ namespace abesse
 	template <typename T, typename U>	Modular<T> operator/(const Modular<T>& lhs, U rhs) { return Modular<T>(lhs) /= rhs; }
 	template <typename T, typename U>	Modular<T> operator/(U lhs, const Modular<T>& rhs) { return Modular<T>(lhs) /= rhs; }
 
-
-
 	template<typename T, typename U>
 	Modular<T> power(const Modular<T>& a, const U& b)
 	{
@@ -558,8 +556,7 @@ namespace abesse
 	};
 
 	enum class TransformationType { FFT, NTT };
-	//In case of FFT root of unity will be computed in place
-	//While in case of NTT it should be passed to ctor 
+	//In case of FFT root of unity will be computed in place, while in case of NTT it should be passed to ctor 
 	template<typename T, TransformationType TRANSFORMATION_TYPE>
 	class Polynomial
 	{
@@ -755,10 +752,9 @@ namespace abesse
 
 			size_t const xmod = this->coefficients.size() + 1 - temp.coefficients.size();
 			temp = temp.inverse(xmod);
-			temp *= *this;
-			temp.coefficients.resize(xmod);
-			std::reverse(temp.coefficients.begin(), temp.coefficients.end());
-			*this = temp;
+			*this *= temp;
+			this->coefficients.resize(xmod);
+			std::reverse(this->coefficients.begin(), this->coefficients.end());
 		}
 
 		Polynomial operator +(Polynomial const& polynomial) const
@@ -2324,7 +2320,7 @@ void solve()
 		return;
 	}
 
-	Polynomial<mint, TransformationType::FFT> p(pv);
+	Polynomial<mint, TransformationType::NTT> p(pv, { 625, 3558448, 1 << 18 });
 	auto iv = p.inverse(m);
 
 	for (size_t i = 0; i < m; i++) cout << iv.get_coefficients()[i] << " ";
