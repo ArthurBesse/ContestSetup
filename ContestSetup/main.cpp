@@ -646,6 +646,7 @@ namespace abesse
 			return q;
 		}
 
+		//Returns inverse modulo x^mod
 		template <TransformationType U = TRANSFORMATION_TYPE, std::enable_if_t<U == TransformationType::FFT, bool> = true>
 		Polynomial inverse(size_t mod)
 		{
@@ -711,7 +712,7 @@ namespace abesse
 			return this->coefficients.size();
 		}
 
-		std::vector<T>& get_coefficients()
+		typename std::vector<T> const& get_coefficients()
 		{
 			return this->coefficients;
 		}
@@ -2323,7 +2324,7 @@ void solve()
 	Polynomial<mint, TransformationType::NTT> p(pv, { 625, 3558448, 1 << 18 });
 	auto iv = p.inverse(m);
 
-	for (size_t i = 0; i < m; i++) cout << iv.get_coefficients()[i] << " ";
+	forall(iv) cout << e << " ";
 
 }
 
