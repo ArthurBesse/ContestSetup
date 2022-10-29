@@ -518,8 +518,6 @@ namespace abesse
 			{
 				T wlen(inverse ? ru.inverse : ru.root);
 				for (size_t i = len; i < ru.power; i <<= 1) wlen *= wlen;
-				//double ang = 2 * M_PI / len * (inverse ? -1 : 1);
-				//T wlen(cos(ang), sin(ang));
 				
 				for (size_t i = 0; i < n; i += len)
 				{
@@ -752,8 +750,8 @@ namespace abesse
 				this->coefficients.assign(1, T());
 				return;
 			}
-			//std::reverse(this->coefficients.begin(), this->coefficients.end());
-			//std::reverse(temp.coefficients.begin(), temp.coefficients.end());
+			std::reverse(this->coefficients.begin(), this->coefficients.end());
+			std::reverse(temp.coefficients.begin(), temp.coefficients.end());
 
 			size_t const xmod = this->coefficients.size() + 1 - temp.coefficients.size();
 			temp = temp.inverse(xmod);
