@@ -82,16 +82,16 @@ namespace abesse
 
 	template<typename T, template<typename> class U>
 	struct is_instantiation_of<U<T>, U> : std::true_type { };
-	
-	#ifdef ABESSE
-	#define REPORT_TIME { auto start = std::chrono::steady_clock::now();
-	#define END_REPORT_TIME_WITH_ID(report_id) std::cout << std::endl << "Report id: " << report_id << ": Elapsed(ns) = " << since(start).count() << std::endl; }
-	#define END_REPORT_TIME std::cout << std::endl << "Elapsed(s) = " << static_cast<long double>(since(start).count()) / 1000000000.0 << std::endl; }
-	#else
-	#define REPORT_TIME
-	#define END_REPORT_TIME_WITH_ID(report_id)
-	#define END_REPORT_TIME
-	#endif
+
+#ifdef ABESSE
+#define REPORT_TIME { auto start = std::chrono::steady_clock::now();
+#define END_REPORT_TIME_WITH_ID(report_id) std::cout << std::endl << "Report id: " << report_id << ": Elapsed(ns) = " << since(start).count() << std::endl; }
+#define END_REPORT_TIME std::cout << std::endl << "Elapsed(s) = " << static_cast<long double>(since(start).count()) / 1000000000.0 << std::endl; }
+#else
+#define REPORT_TIME
+#define END_REPORT_TIME_WITH_ID(report_id)
+#define END_REPORT_TIME
+#endif
 
 	template <typename result_t = std::chrono::nanoseconds, typename clock_t = std::chrono::steady_clock, typename duration_t = std::chrono::nanoseconds>
 	auto since(std::chrono::time_point<clock_t, duration_t> const& start)
@@ -253,7 +253,7 @@ namespace abesse
 		{
 			Type v;
 			if (-mod() <= x && x < mod()) v = static_cast<Type>(x);
-			else v = (static_cast<Type>(x)) % mod();
+			else v = static_cast<Type>((static_cast<int64_t>(x)) % mod());
 			if (v < 0) v += mod();
 			return v;
 		}
@@ -826,28 +826,28 @@ namespace abesse
 		RootOfUnity<T> root_of_unity;
 		template<typename, TransformationType> friend class Polynomial;
 	public:
-		template<typename U, TransformationType V = TRANSFORMATION_TYPE, std::enable_if_t<!std::is_same<T, U>::value&& V == TransformationType::NTT, bool> = true>
+		template<typename U, TransformationType V = TRANSFORMATION_TYPE, std::enable_if_t<!std::is_same<T, U>::value && V == TransformationType::NTT, bool> = true>
 		Polynomial(std::vector<U> const& cfs, RootOfUnity<T> ru)
 			: coefficients(cfs.cbegin(), cfs.cend())
 			, root_of_unity(ru)
 		{
 		}
 
-		template<typename U, TransformationType V = TRANSFORMATION_TYPE, std::enable_if_t<!std::is_same<T, U>::value&& V == TransformationType::FFT, bool> = true>
+		template<typename U, TransformationType V = TRANSFORMATION_TYPE, std::enable_if_t<!std::is_same<T, U>::value && V == TransformationType::FFT, bool> = true>
 		Polynomial(std::vector<U> const& cfs)
 			: coefficients(cfs.cbegin(), cfs.cend())
 			, root_of_unity(T(), T(), 0)
 		{
 		}
 
-		template<typename U, TransformationType V = TRANSFORMATION_TYPE, std::enable_if_t<std::is_same<T, U>::value&& V == TransformationType::NTT, bool> = true>
+		template<typename U, TransformationType V = TRANSFORMATION_TYPE, std::enable_if_t<std::is_same<T, U>::value && V == TransformationType::NTT, bool> = true>
 		Polynomial(std::vector<U> cfs, RootOfUnity<T> ru)
 			: coefficients(std::move(cfs))
 			, root_of_unity(ru)
 		{
 		}
 
-		template<typename U, TransformationType V = TRANSFORMATION_TYPE, std::enable_if_t<std::is_same<T, U>::value&& V == TransformationType::FFT, bool> = true>
+		template<typename U, TransformationType V = TRANSFORMATION_TYPE, std::enable_if_t<std::is_same<T, U>::value && V == TransformationType::FFT, bool> = true>
 		Polynomial(std::vector<U> cfs)
 			: coefficients(std::move(cfs))
 			, root_of_unity(T(), T(), 0)
@@ -904,7 +904,7 @@ namespace abesse
 				Polynomial::multiply(p1, q, 2 * mod, rev.get());
 				for (size_t i = 0; i < 2 * mod; i++) if (i < mod) p1.coefficients[i] = -(p1.coefficients[i] + p0.coefficients[i + m]); else p1.coefficients[i] = 0;
 				Polynomial::multiply(p1, q, 2 * mod, rev.get());
-				for (size_t i = m; i < mod; i++) q.coefficients[i] = q.coefficients[i] + p1.coefficients[i - m];
+				for (size_t i = m; i < mod; i++) q.coefficients[i] += p1.coefficients[i - m];
 			}
 			return q;
 		}
@@ -944,16 +944,7 @@ namespace abesse
 				std::copy(std::next(p.coefficients.cbegin(), m), p.coefficients.cend(), p1.coefficients.begin());
 				Polynomial<U, TRANSFORMATION_TYPE>::multiply(p0, q, 2 * mod, rev.get());
 				Polynomial<U, TRANSFORMATION_TYPE>::multiply(p1, q, 2 * mod, rev.get());
-				
-				for (size_t i = 0; i < 2 * mod; i++) 
-				{ 
-					if (i < mod) 
-					{ 
-						p1.coefficients[i] += p0.coefficients[i + m]; 
-						p1.coefficients[i] = -p1.coefficients[i];
-					} 
-					else p1.coefficients[i] = 0;
-				}
+				for (size_t i = 0; i < 2 * mod; i++) if (i < mod) p1.coefficients[i] = -(p1.coefficients[i] + p0.coefficients[i + m]); else p1.coefficients[i] = 0;
 				Polynomial<U, TRANSFORMATION_TYPE>::multiply(p1, q, 2 * mod, rev.get());
 				for (size_t i = m; i < mod; i++) q.coefficients[i] += p1.coefficients[i - m];
 			}
@@ -2578,7 +2569,7 @@ using namespace std;
 typedef unsigned long long ull;
 typedef long long ll;
 typedef unsigned int ui;
-constexpr int md = 7;
+constexpr int md = 7340033;
 using mint = Modular<std::integral_constant<int, md>>;
 
 
@@ -2586,33 +2577,21 @@ using mint = Modular<std::integral_constant<int, md>>;
 void solve()
 {
 	int n, m;
-	cin >> n;
-	vector<int> pv(n + 1);
+	cin >> m >> n;
+	vector<mint> pv(n + 1);
 	read(pv);
-	cin >> m;
-	vector<int> qv(m + 1);
-	read(qv);
 
-	Polynomial<mint, TransformationType::FFT> p(pv);
-	Polynomial<mint, TransformationType::FFT> q(qv);
+	if (pv[0].is_zero())
+	{
+		cout << "The ears of a dead donkey\n";
+		return;
+	}
 
-	auto d = p / q;
-	reverse(all(p));
-	reverse(all(q));
-	q *= d;
-	p -= q;
+	Polynomial<mint, TransformationType::NTT> p(pv, { 625, 3558448, 1 << 18 });
+	auto iv = p.inverse(m);
 
-	while (d.get_coefficients().empty() == false && d.get_coefficients().back() == 0) d.get_coefficients().pop_back();
-	if (d.get_coefficients().size() == 0) d.get_coefficients().push_back(0);
-	cout << d.size() - 1 << " ";
-	for (auto i = d.get_coefficients().crbegin(); i != d.get_coefficients().crend(); i++) cout << *i << " ";
+	for (size_t i = 0; i < m; i++) cout << iv.get_coefficients()[i] << " ";
 
-	cout << endl;
-
-	while (p.get_coefficients().empty() == false && p.get_coefficients().back() == 0) p.get_coefficients().pop_back();
-	if (p.get_coefficients().size() == 0) p.get_coefficients().push_back(0);
-	cout << p.size() - 1 << " ";
-	for (auto i = p.get_coefficients().crbegin(); i != p.get_coefficients().crend(); i++) cout << *i << " ";
 }
 
 
@@ -2639,4 +2618,5 @@ int main(int argc, char const** argv)
 
 	return 0;
 }
+
 
