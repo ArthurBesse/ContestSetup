@@ -85,8 +85,8 @@ namespace abesse
 	
 	#ifdef ABESSE
 	#define REPORT_TIME { auto start = std::chrono::steady_clock::now();
-	#define END_REPORT_TIME_WITH_ID(report_id) std::cout << "Report id: " << report_id << ": Elapsed(ns) = " << since(start).count() << std::endl; }
-	#define END_REPORT_TIME std::cout << "Elapsed(s) = " << static_cast<long double>(since(start).count()) / 1000000000.0 << std::endl; }
+	#define END_REPORT_TIME_WITH_ID(report_id) std::cout << std::endl << "Report id: " << report_id << ": Elapsed(ns) = " << since(start).count() << std::endl; }
+	#define END_REPORT_TIME std::cout << std::endl << "Elapsed(s) = " << static_cast<long double>(since(start).count()) / 1000000000.0 << std::endl; }
 	#else
 	#define REPORT_TIME
 	#define END_REPORT_TIME_WITH_ID(report_id)
@@ -824,6 +824,7 @@ namespace abesse
 	{
 		std::vector<T> coefficients;
 		RootOfUnity<T> root_of_unity;
+		template<typename, TransformationType> friend class Polynomial;
 	public:
 		template<typename U, TransformationType V = TRANSFORMATION_TYPE, std::enable_if_t<!std::is_same<T, U>::value&& V == TransformationType::NTT, bool> = true>
 		Polynomial(std::vector<U> const& cfs, RootOfUnity<T> ru)
@@ -929,7 +930,7 @@ namespace abesse
 			}
 
 			Polynomial<U, TRANSFORMATION_TYPE> p(this->coefficients);
-			Polynomial<U, TRANSFORMATION_TYPE> q(std::vector<U>{U(1) / U(*p.cbegin())});
+			Polynomial<U, TRANSFORMATION_TYPE> q(std::vector<U>{(U(1) / U(*p.cbegin()))});
 			p.coefficients.resize(mod);
 			q.coefficients.resize(mod);
 			Polynomial<U, TRANSFORMATION_TYPE> p0(2 * mod);
@@ -937,8 +938,8 @@ namespace abesse
 
 			for (size_t m = 1; m < mod; m <<= 1)
 			{
-				p0.coefficients.assign(2 * mod, T());
-				p1.coefficients.assign(2 * mod, T());
+				p0.coefficients.assign(2 * mod, U());
+				p1.coefficients.assign(2 * mod, U());
 				std::copy(p.coefficients.cbegin(), std::next(p.coefficients.cbegin(), m), p0.coefficients.begin());
 				std::copy(std::next(p.coefficients.cbegin(), m), p.coefficients.cend(), p1.coefficients.begin());
 				Polynomial<U, TRANSFORMATION_TYPE>::multiply(p0, q, 2 * mod, rev.get());
@@ -953,8 +954,8 @@ namespace abesse
 					} 
 					else p1.coefficients[i] = 0;
 				}
-				Polynomial::multiply(p1, q, 2 * mod, rev.get());
-				for (size_t i = m; i < mod; i++) q.coefficients[i] = q.coefficients[i] + p1.coefficients[i - m];
+				Polynomial<U, TRANSFORMATION_TYPE>::multiply(p1, q, 2 * mod, rev.get());
+				for (size_t i = m; i < mod; i++) q.coefficients[i] += p1.coefficients[i - m];
 			}
 
 			if constexpr (std::is_same<Polynomial<U, TRANSFORMATION_TYPE>, Polynomial>::value) return q;
@@ -1022,8 +1023,8 @@ namespace abesse
 				this->coefficients.assign(1, T());
 				return;
 			}
-			//std::reverse(this->coefficients.begin(), this->coefficients.end());
-			//std::reverse(temp.coefficients.begin(), temp.coefficients.end());
+			std::reverse(this->coefficients.begin(), this->coefficients.end());
+			std::reverse(temp.coefficients.begin(), temp.coefficients.end());
 
 			size_t const xmod = this->coefficients.size() + 1 - temp.coefficients.size();
 			temp = temp.inverse(xmod);
@@ -2603,15 +2604,15 @@ void solve()
 
 	while (d.get_coefficients().empty() == false && d.get_coefficients().back() == 0) d.get_coefficients().pop_back();
 	if (d.get_coefficients().size() == 0) d.get_coefficients().push_back(0);
-	//cout << d.size() - 1 << " ";
-	//for (auto i = d.get_coefficients().crbegin(); i != d.get_coefficients().crend(); i++) cout << *i << " ";
+	cout << d.size() - 1 << " ";
+	for (auto i = d.get_coefficients().crbegin(); i != d.get_coefficients().crend(); i++) cout << *i << " ";
 
 	cout << endl;
 
 	while (p.get_coefficients().empty() == false && p.get_coefficients().back() == 0) p.get_coefficients().pop_back();
 	if (p.get_coefficients().size() == 0) p.get_coefficients().push_back(0);
-	//cout << p.size() - 1 << " ";
-	//for (auto i = p.get_coefficients().crbegin(); i != p.get_coefficients().crend(); i++) cout << *i << " ";
+	cout << p.size() - 1 << " ";
+	for (auto i = p.get_coefficients().crbegin(); i != p.get_coefficients().crend(); i++) cout << *i << " ";
 }
 
 
