@@ -82,7 +82,22 @@ namespace abesse
 
 	template<typename T, template<typename> class U>
 	struct is_instantiation_of<U<T>, U> : std::true_type { };
+	
+	#ifdef ABESSE
+	#define REPORT_TIME { auto start = std::chrono::steady_clock::now();
+	#define END_REPORT_TIME_WITH_ID(report_id) std::cout << "Report id: " << report_id << ": Elapsed(ns) = " << since(start).count() << std::endl; }
+	#define END_REPORT_TIME std::cout << "Elapsed(s) = " << static_cast<long double>(since(start).count()) / 1000000000.0 << std::endl; }
+	#else
+	#define REPORT_TIME
+	#define END_REPORT_TIME_WITH_ID(report_id)
+	#define END_REPORT_TIME
+	#endif
 
+	template <typename result_t = std::chrono::nanoseconds, typename clock_t = std::chrono::steady_clock, typename duration_t = std::chrono::nanoseconds>
+	auto since(std::chrono::time_point<clock_t, duration_t> const& start)
+	{
+		return std::chrono::duration_cast<result_t>(clock_t::now() - start);
+	}
 
 	template<typename T>
 	T gcd(T a, T b)
@@ -220,31 +235,6 @@ namespace abesse
 	template <typename T>
 	class Modular;
 
-	class MultiplicativeInverse
-	{
-	public:
-
-		template <typename T, std::enable_if_t<is_instantiation_of<T, Modular>::value, bool> = true>
-		static T compute(T a)
-		{
-			auto g = gcdex<typename T::Type>(a(), T::mod());
-			if (std::get<0>(g) != 1) return -1;
-			return T(std::get<1>(g));
-		}
-
-		template <typename T, std::enable_if_t<std::is_floating_point<T>::value, bool> = true>
-		static T compute(T a)
-		{
-			return T(1) / a;
-		}
-
-		template <typename T, std::enable_if_t<std::is_integral<T>::value, bool> = true>
-		static long double compute(T a)
-		{
-			return (long double)(1) / a;
-		}
-	};
-
 	template <typename T>
 	class Modular
 	{
@@ -255,7 +245,7 @@ namespace abesse
 		template <typename U>
 		Modular(const U& x)
 		{
-			value = normalize(static_cast<Type>(x));
+			value = normalize(x);
 		}
 
 		template <typename U>
@@ -263,7 +253,7 @@ namespace abesse
 		{
 			Type v;
 			if (-mod() <= x && x < mod()) v = static_cast<Type>(x);
-			else v = static_cast<Type>(x % mod());
+			else v = (static_cast<Type>(x)) % mod();
 			if (v < 0) v += mod();
 			return v;
 		}
@@ -315,7 +305,13 @@ namespace abesse
 			return *this;
 		}
 
-		Modular& operator/=(const Modular& other) { return *this *= MultiplicativeInverse::compute<Modular<T>>(other); }
+		//Should be used only if mod is prime
+		Modular& operator/=(const Modular& other)
+		{
+			auto const g = gcdex<Type>(other(), mod());
+			//return *this *= Modular(std::get<1>(g));
+			return this->operator*=(Modular<T>(std::get<1>(g)));
+		}
 
 		friend const Type& abs(const Modular& x) { return x.value; }
 
@@ -388,6 +384,7 @@ namespace abesse
 		number.value = Modular<U>::normalize(x);
 		return stream;
 	}
+
 
 	template<size_t MAXN>
 	class Erato
@@ -476,6 +473,242 @@ namespace abesse
 	};
 
 	template<typename T>
+	class Fraction
+	{
+	private:
+
+		T numerator;
+		T denominator;
+	public:
+		Fraction(void)
+		{
+			this->numerator = T(0);
+			this->denominator = T(1);
+		}
+		template<typename U>
+		Fraction(U n, U d)
+			: numerator(static_cast<T>(n))
+			, denominator(static_cast<T>(d))
+		{}
+		template<typename U>
+		Fraction(U n)
+			: numerator(static_cast<T>(n))
+			, denominator(static_cast<T>(1))
+		{}
+		Fraction(long double Number)
+		{
+			this->convert_double_to_fraction(Number);
+		}
+		Fraction(std::string fraction_string)
+		{
+			this->convert_string_to_fraction(fraction_string);
+		}
+
+		T get_numerator(void) const
+		{
+			return this->numerator;
+		}
+		T get_denominator(void) const
+		{
+			return this->denominator;
+		}
+		void set_numerator(T Numerator)
+		{
+			this->numerator = Numerator;
+			this->normalize();
+		}
+		void set_denominator(T Denominator)
+		{
+			this->denominator = Denominator;
+			this->normalize();
+		}
+
+		bool operator<(Fraction const& fraction) const
+		{
+			return (this->numerator * fraction.get_denominator()) < (fraction.get_numerator() * this->denominator);
+		}
+		bool operator<=(Fraction const& fraction) const
+		{
+			return (this->numerator * fraction.get_denominator()) <= (fraction.get_numerator() * this->denominator);
+		}
+		bool operator>(Fraction const& fraction) const
+		{
+			return (this->numerator * fraction.get_denominator()) > (fraction.get_numerator() * this->denominator);
+		}
+		bool operator>=(Fraction const& fraction) const
+		{
+			return (this->numerator * fraction.get_denominator()) >= (fraction.get_numerator() * this->denominator);
+		}
+		bool operator==(Fraction const& fraction) const
+		{
+			return (this->numerator * fraction.get_denominator()) == (fraction.get_numerator() * this->denominator);
+		}
+		bool operator!=(Fraction const& fraction) const
+		{
+			return (this->numerator * fraction.get_denominator()) != (fraction.get_numerator() * this->denominator);
+		}
+		long operator%(Fraction const& fraction) const
+		{
+			long result;
+			result = ((this->numerator * fraction.get_denominator()) % (this->denominator * fraction.get_numerator())) / (this->denominator * fraction.get_denominator());
+			return result;
+		}
+		explicit operator double() const
+		{
+			return this->convert_fraction_to_double();
+		}
+		explicit operator float() const
+		{
+			return static_cast<float>(this->convert_fraction_to_double());
+		}
+		explicit operator std::complex<double>() const
+		{
+			return std::complex<double>(this->convert_fraction_to_double());
+		}
+		operator std::string() const
+		{
+			std::stringstream output;
+			output << this->get_numerator() << "/" << this->get_denominator();
+			return output.str();
+		}
+
+		Fraction operator+(Fraction const& fraction) const
+		{
+			Fraction result = *this;
+			result += fraction;
+			return result;
+		}
+		Fraction operator+=(Fraction fraction)
+		{
+			if (this->denominator == fraction.get_denominator()) this->numerator += fraction.get_numerator();
+			else
+			{
+				this->numerator = (this->numerator * fraction.get_denominator()) + (fraction.get_numerator() * this->denominator);
+				this->denominator *= fraction.get_denominator();
+			}
+			this->normalize();
+			return *this;
+		}
+		Fraction operator-(Fraction const& fraction) const
+		{
+			Fraction result = *this;
+			result -= fraction;
+			return result;
+		}
+		Fraction operator-() const
+		{
+			return Fraction(-this->numerator, this->denominator);
+		}
+		Fraction operator-=(Fraction const& fraction)
+		{
+			if (this->denominator == fraction.get_denominator()) this->numerator -= fraction.get_numerator();
+			else
+			{
+				this->numerator = (this->numerator * fraction.get_denominator()) - (fraction.get_numerator() * this->denominator);
+				this->denominator *= fraction.get_denominator();
+			}
+			this->normalize();
+			return *this;
+		}
+		Fraction operator*(Fraction const& fraction) const
+		{
+			Fraction result = *this;
+			result *= fraction;
+			return result;
+		}
+		Fraction operator*=(Fraction const& fraction)
+		{
+			this->denominator *= fraction.get_denominator();
+			this->numerator *= fraction.get_numerator();
+			this->normalize();
+			return *this;
+		}
+		Fraction operator/(Fraction const& fraction) const
+		{
+			Fraction result = *this;
+			result /= fraction;
+			return result;
+		}
+		Fraction operator/=(Fraction const& fraction)
+		{
+			this->denominator *= fraction.get_numerator();
+			this->numerator *= fraction.get_denominator();
+			this->normalize();
+			return *this;
+		}
+		Fraction operator~(void) const
+		{
+			Fraction result_fraction;
+			if (this->numerator > this->denominator) return *this;
+			else
+			{
+				result_fraction.set_numerator(this->denominator - this->numerator);
+				result_fraction.set_denominator(this->denominator);
+				this->normalize();
+				return result_fraction;
+			}
+		}
+		Fraction operator++(void)
+		{
+			this->numerator += 1;
+			this->normalize();
+			return *this;
+		}
+		Fraction operator--(void)
+		{
+			this->numerator -= 1;
+			this->normalize();
+			return *this;
+		}
+	private:
+		bool normalize(void)
+		{
+			T const greatest_common_divisor = gcd(this->numerator, this->denominator);
+			if (1 < greatest_common_divisor)
+			{
+				this->numerator /= greatest_common_divisor;
+				this->denominator /= greatest_common_divisor;
+
+				return true;
+			}
+			return false;
+		}
+		void convert_double_to_fraction(double number)
+		{
+			long double const int_val = floor(number);
+			long double const f = number - int_val;
+			constexpr T presision = 1000000000;
+			T const gcd_val = gcd(static_cast<T>(std::round(f * presision)), static_cast<T>(presision));
+			T const num = std::round(f * presision) / gcd_val;
+			T const deno = presision / gcd_val;
+			this->numerator = (int_val * deno) + num;
+			this->denominator = presision / gcd_val;
+		}
+		double convert_fraction_to_double(void) const
+		{
+			return (double)this->numerator / (double)this->denominator;
+		}
+		bool convert_string_to_fraction(std::string const& FractionString)
+		{
+			std::size_t const pos = FractionString.find("/");
+			if (pos != std::string::npos)
+			{
+				try
+				{
+					this->numerator = static_cast<T>(atol(FractionString.substr(0, pos).c_str()));
+					this->denominator = static_cast<T>(atol(FractionString.substr(pos + 1).c_str()));
+				}
+				catch (...)
+				{
+					return false;
+				}
+				return (this->denominator == 0) ? false : true;
+			}
+			return false;
+		}
+	};
+
+	template<typename T>
 	class RootOfUnity
 	{
 	public:
@@ -487,6 +720,35 @@ namespace abesse
 			, inverse(i)
 			, power(p)
 		{}
+	};
+
+	template<typename T>
+	class MultiplicativeInverse
+	{
+	public:
+		template <typename U = T, std::enable_if_t<!std::is_integral<U>::value, bool> = true>
+		static T compute(T a)
+		{
+			return T(1) / a;
+		}
+
+		template <typename U = T, std::enable_if_t<std::is_integral<U>::value, bool> = true>
+		static long double compute(T a)
+		{
+			return (long double)(1) / a;
+		}
+	};
+
+	template<typename T, bool = std::is_integral<T>::value>
+	struct make_fft_compatible
+	{
+		using type = T;
+	};
+
+	template<typename T>
+	struct make_fft_compatible<T, true>
+	{
+		using type = double;
 	};
 
 	template<typename T>
@@ -516,7 +778,7 @@ namespace abesse
 			{
 				T wlen(inverse ? ru.inverse : ru.root);
 				for (size_t i = len; i < ru.power; i <<= 1) wlen *= wlen;
-				
+
 				for (size_t i = 0; i < n; i += len)
 				{
 					T w(1);
@@ -563,28 +825,28 @@ namespace abesse
 		std::vector<T> coefficients;
 		RootOfUnity<T> root_of_unity;
 	public:
-		template<typename U, TransformationType V = TRANSFORMATION_TYPE, std::enable_if_t<!std::is_same<T, U>::value && V == TransformationType::NTT, bool> = true>
+		template<typename U, TransformationType V = TRANSFORMATION_TYPE, std::enable_if_t<!std::is_same<T, U>::value&& V == TransformationType::NTT, bool> = true>
 		Polynomial(std::vector<U> const& cfs, RootOfUnity<T> ru)
 			: coefficients(cfs.cbegin(), cfs.cend())
 			, root_of_unity(ru)
 		{
 		}
 
-		template<typename U, TransformationType V = TRANSFORMATION_TYPE, std::enable_if_t<!std::is_same<T, U>::value && V == TransformationType::FFT, bool> = true>
+		template<typename U, TransformationType V = TRANSFORMATION_TYPE, std::enable_if_t<!std::is_same<T, U>::value&& V == TransformationType::FFT, bool> = true>
 		Polynomial(std::vector<U> const& cfs)
 			: coefficients(cfs.cbegin(), cfs.cend())
 			, root_of_unity(T(), T(), 0)
 		{
 		}
 
-		template<typename U, TransformationType V = TRANSFORMATION_TYPE, std::enable_if_t<std::is_same<T, U>::value && V == TransformationType::NTT, bool> = true>
+		template<typename U, TransformationType V = TRANSFORMATION_TYPE, std::enable_if_t<std::is_same<T, U>::value&& V == TransformationType::NTT, bool> = true>
 		Polynomial(std::vector<U> cfs, RootOfUnity<T> ru)
 			: coefficients(std::move(cfs))
 			, root_of_unity(ru)
 		{
 		}
 
-		template<typename U, TransformationType V = TRANSFORMATION_TYPE, std::enable_if_t<std::is_same<T, U>::value && V == TransformationType::FFT, bool> = true>
+		template<typename U, TransformationType V = TRANSFORMATION_TYPE, std::enable_if_t<std::is_same<T, U>::value&& V == TransformationType::FFT, bool> = true>
 		Polynomial(std::vector<U> cfs)
 			: coefficients(std::move(cfs))
 			, root_of_unity(T(), T(), 0)
@@ -606,7 +868,7 @@ namespace abesse
 		}
 
 		//Returns inverse modulo x^mod
-		template <TransformationType U = TRANSFORMATION_TYPE, std::enable_if_t<U == TransformationType::NTT, bool> = true>
+		template <TransformationType V = TRANSFORMATION_TYPE, std::enable_if_t<V == TransformationType::NTT, bool> = true>
 		Polynomial inverse(size_t mod)
 		{
 			size_t temp = 1;
@@ -641,15 +903,16 @@ namespace abesse
 				Polynomial::multiply(p1, q, 2 * mod, rev.get());
 				for (size_t i = 0; i < 2 * mod; i++) if (i < mod) p1.coefficients[i] = -(p1.coefficients[i] + p0.coefficients[i + m]); else p1.coefficients[i] = 0;
 				Polynomial::multiply(p1, q, 2 * mod, rev.get());
-				for (size_t i = m; i < mod; i++) q.coefficients[i] += p1.coefficients[i - m];
+				for (size_t i = m; i < mod; i++) q.coefficients[i] = q.coefficients[i] + p1.coefficients[i - m];
 			}
 			return q;
 		}
 
 		//Returns inverse modulo x^mod
-		template <TransformationType U = TRANSFORMATION_TYPE, std::enable_if_t<U == TransformationType::FFT, bool> = true>
+		template <TransformationType V = TRANSFORMATION_TYPE, std::enable_if_t<V == TransformationType::FFT, bool> = true>
 		Polynomial inverse(size_t mod)
 		{
+			using U = typename make_fft_compatible<T>::type;
 			size_t temp = 1;
 			while (temp < mod) temp <<= 1;
 			mod = temp;
@@ -665,12 +928,12 @@ namespace abesse
 				rev.get()[i] = j;
 			}
 
-			Polynomial p(this->coefficients);
-			Polynomial q(std::vector<T>{T(1) / *p.cbegin()});
+			Polynomial<U, TRANSFORMATION_TYPE> p(this->coefficients);
+			Polynomial<U, TRANSFORMATION_TYPE> q(std::vector<U>{U(1) / U(*p.cbegin())});
 			p.coefficients.resize(mod);
 			q.coefficients.resize(mod);
-			Polynomial p0(2 * mod);
-			Polynomial p1(2 * mod);
+			Polynomial<U, TRANSFORMATION_TYPE> p0(2 * mod);
+			Polynomial<U, TRANSFORMATION_TYPE> p1(2 * mod);
 
 			for (size_t m = 1; m < mod; m <<= 1)
 			{
@@ -678,13 +941,24 @@ namespace abesse
 				p1.coefficients.assign(2 * mod, T());
 				std::copy(p.coefficients.cbegin(), std::next(p.coefficients.cbegin(), m), p0.coefficients.begin());
 				std::copy(std::next(p.coefficients.cbegin(), m), p.coefficients.cend(), p1.coefficients.begin());
-				Polynomial::multiply(p0, q, 2 * mod, rev.get());
+				Polynomial<U, TRANSFORMATION_TYPE>::multiply(p0, q, 2 * mod, rev.get());
+				Polynomial<U, TRANSFORMATION_TYPE>::multiply(p1, q, 2 * mod, rev.get());
+				
+				for (size_t i = 0; i < 2 * mod; i++) 
+				{ 
+					if (i < mod) 
+					{ 
+						p1.coefficients[i] += p0.coefficients[i + m]; 
+						p1.coefficients[i] = -p1.coefficients[i];
+					} 
+					else p1.coefficients[i] = 0;
+				}
 				Polynomial::multiply(p1, q, 2 * mod, rev.get());
-				for (size_t i = 0; i < 2 * mod; i++) if (i < mod) p1.coefficients[i] = -(p1.coefficients[i] + p0.coefficients[i + m]); else p1.coefficients[i] = 0;
-				Polynomial::multiply(p1, q, 2 * mod, rev.get());
-				for (size_t i = m; i < mod; i++) q.coefficients[i] += p1.coefficients[i - m];
+				for (size_t i = m; i < mod; i++) q.coefficients[i] = q.coefficients[i] + p1.coefficients[i - m];
 			}
-			return q;
+
+			if constexpr (std::is_same<Polynomial<U, TRANSFORMATION_TYPE>, Polynomial>::value) return q;
+			else return Polynomial(q.get_coefficients());
 		}
 
 		typename std::vector<T>::iterator begin()
@@ -712,7 +986,7 @@ namespace abesse
 			return this->coefficients.size();
 		}
 
-		typename std::vector<T> const& get_coefficients()
+		typename std::vector<T>& get_coefficients()
 		{
 			return this->coefficients;
 		}
@@ -748,8 +1022,8 @@ namespace abesse
 				this->coefficients.assign(1, T());
 				return;
 			}
-			std::reverse(this->coefficients.begin(), this->coefficients.end());
-			std::reverse(temp.coefficients.begin(), temp.coefficients.end());
+			//std::reverse(this->coefficients.begin(), this->coefficients.end());
+			//std::reverse(temp.coefficients.begin(), temp.coefficients.end());
 
 			size_t const xmod = this->coefficients.size() + 1 - temp.coefficients.size();
 			temp = temp.inverse(xmod);
@@ -2303,7 +2577,7 @@ using namespace std;
 typedef unsigned long long ull;
 typedef long long ll;
 typedef unsigned int ui;
-constexpr int md = 7340033;
+constexpr int md = 7;
 using mint = Modular<std::integral_constant<int, md>>;
 
 
@@ -2311,21 +2585,33 @@ using mint = Modular<std::integral_constant<int, md>>;
 void solve()
 {
 	int n, m;
-	cin >> m >> n;
-	vector<mint> pv(n + 1);
+	cin >> n;
+	vector<int> pv(n + 1);
 	read(pv);
+	cin >> m;
+	vector<int> qv(m + 1);
+	read(qv);
 
-	if (pv[0].is_zero())
-	{
-		cout << "The ears of a dead donkey\n";
-		return;
-	}
+	Polynomial<mint, TransformationType::FFT> p(pv);
+	Polynomial<mint, TransformationType::FFT> q(qv);
 
-	Polynomial<mint, TransformationType::NTT> p(pv, { 625, 3558448, 1 << 18 });
-	auto iv = p.inverse(m);
+	auto d = p / q;
+	reverse(all(p));
+	reverse(all(q));
+	q *= d;
+	p -= q;
 
-	forall(iv) cout << e << " ";
+	while (d.get_coefficients().empty() == false && d.get_coefficients().back() == 0) d.get_coefficients().pop_back();
+	if (d.get_coefficients().size() == 0) d.get_coefficients().push_back(0);
+	//cout << d.size() - 1 << " ";
+	//for (auto i = d.get_coefficients().crbegin(); i != d.get_coefficients().crend(); i++) cout << *i << " ";
 
+	cout << endl;
+
+	while (p.get_coefficients().empty() == false && p.get_coefficients().back() == 0) p.get_coefficients().pop_back();
+	if (p.get_coefficients().size() == 0) p.get_coefficients().push_back(0);
+	//cout << p.size() - 1 << " ";
+	//for (auto i = p.get_coefficients().crbegin(); i != p.get_coefficients().crend(); i++) cout << *i << " ";
 }
 
 
@@ -2344,7 +2630,9 @@ int main(int argc, char const** argv)
 		std::cin >> x;
 	for (size_t i = 1; i <= x; i++)
 	{
+		REPORT_TIME
 		solve();
+		END_REPORT_TIME
 	}
 
 
