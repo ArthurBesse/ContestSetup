@@ -232,9 +232,6 @@ namespace abesse
 	};
 
 	template <typename T>
-	class Modular;
-
-	template <typename T>
 	class Modular
 	{
 	public:
